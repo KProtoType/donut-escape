@@ -16,17 +16,23 @@
 - **Obstacle Sizing:** Everything bigger than donut, proportionate to real life size
 - **Depth Rendering:** Objects scale based on distance from camera
 
-### Game Mechanics
+### Game Mechanics (Subway Surfers Style)
 - **Movement:** Donut runs forward into screen depth, player moves left/right between lanes
 - **Starting Speed:** Faster beginning speed (4)
-- **Jump/Roll Logic:** 
-  - Jump over short obstacles (manholes, puddles, cones)
-  - Roll under obstacles with gaps (static obstacles only)
-  - Cars cannot be jumped over or ducked under - must be avoided by changing lanes
-- **Obstacle Behavior:**
-  - Static obstacles: spawn in lanes, move toward camera
-  - Cars: drive horizontally across lanes and disappear
-  - Feet: walk horizontally across screen
+- **Currency System:** Coins, strawberries, chocolates saved between sessions
+- **Costume Unlocking:** Use currency to unlock new costumes (chef hat, superhero cape, sailor outfit)
+- **DONUT Letters:** Collect all 5 letters for bonus (100 of each currency)
+- **Sprinkle Trail:** Arnie sheds colorful sprinkles while running
+
+### Obstacles
+- **Static:** Construction cones (lane change only), manholes/puddles (jump), fork/spoon (roll under)
+- **Moving:** Cars (drive across lanes, cannot be jumped/ducked), Feet (walk across screen)
+- **Avoidance:** Jump over manholes/puddles, roll under forks/spoons, change lanes for cones/cars/feet
+
+### Power-ups
+- **Icing Gun:** Automatically collects all nearby coins/strawberries/chocolates
+- **Strawberry Chocolate Honey Cluster:** Special bonus item
+- **Glaze Invisibility:** Pass through obstacles temporarily
 - **Pause Mechanic:** Spacebar pauses game for exactly 2 seconds with countdown
 
 ### Technical Workflow

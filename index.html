@@ -30,21 +30,40 @@
             <div class="menu-content">
                 <h2>Choose Your Costume</h2>
                 <div class="costume-grid">
-                    <div class="costume-card active" data-costume="default">
+                    <div class="costume-card active" data-costume="default" data-cost="0">
                         <div class="costume-preview">🍩</div>
                         <p>Original Arnie</p>
+                        <span class="cost">FREE</span>
                     </div>
-                    <div class="costume-card" data-costume="cop">
+                    <div class="costume-card locked" data-costume="police" data-cost="25">
                         <div class="costume-preview">👕🍩</div>
-                        <p>Traffic Cop Donut</p>
+                        <p>Police Donut</p>
+                        <span class="cost">🪙25 🍓15 🍫15</span>
                     </div>
-                    <div class="costume-card" data-costume="rockstar">
+                    <div class="costume-card locked" data-costume="rockstar" data-cost="40">
                         <div class="costume-preview">🎸🍩</div>
                         <p>Rockstar Donut</p>
+                        <span class="cost">🪙40 🍓20 🍫20</span>
                     </div>
-                    <div class="costume-card" data-costume="alien">
+                    <div class="costume-card locked" data-costume="alien" data-cost="60">
                         <div class="costume-preview">👽🍩</div>
                         <p>Alien Donut</p>
+                        <span class="cost">🪙60 🍓30 🍫30</span>
+                    </div>
+                    <div class="costume-card locked" data-costume="chef" data-cost="80">
+                        <div class="costume-preview">👨‍🍳🍩</div>
+                        <p>Chef Donut</p>
+                        <span class="cost">🪙80 🍓40 🍫40</span>
+                    </div>
+                    <div class="costume-card locked" data-costume="superhero" data-cost="120">
+                        <div class="costume-preview">🦸‍♂️🍩</div>
+                        <p>Super Donut</p>
+                        <span class="cost">🪙120 🍓60 🍫60</span>
+                    </div>
+                    <div class="costume-card locked" data-costume="sailor" data-cost="150">
+                        <div class="costume-preview">⚓🍩</div>
+                        <p>Sailor Donut</p>
+                        <span class="cost">🪙150 🍓75 🍫75</span>
                     </div>
                 </div>
                 <button id="backToMenuBtn" class="menu-btn">BACK TO MENU</button>
@@ -56,6 +75,12 @@
             <div id="gameUI">
                 <div id="scoreDisplay">Score: <span id="score">0</span></div>
                 <div id="distanceDisplay">Distance: <span id="distance">0</span>m</div>
+                <div id="currencyDisplay">
+                    <span id="coins">🪙 0</span>
+                    <span id="strawberries">🍓 0</span>
+                    <span id="chocolates">🍫 0</span>
+                </div>
+                <div id="donutLetters">DONUT: <span id="letterProgress">-----</span></div>
                 <button id="pauseBtn" class="ui-btn">⏸️ PAUSE</button>
             </div>
             <canvas id="gameCanvas" width="800" height="600"></canvas>

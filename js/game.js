@@ -1,4 +1,4 @@
-// Donut Escape 3D Game Engine - Subway Surfers Style
+// Donut Escape - Subway Surfers Style Game Engine
 class DonutEscapeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -8,6 +8,14 @@ class DonutEscapeGame {
         this.distance = 0;
         this.gameSpeed = 4;
         this.selectedCostume = 'default';
+        
+        // Currency system
+        this.coins = parseInt(localStorage.getItem('donut_coins') || '0');
+        this.strawberries = parseInt(localStorage.getItem('donut_strawberries') || '0');
+        this.chocolates = parseInt(localStorage.getItem('donut_chocolates') || '0');
+        this.donutLetters = ['D', 'O', 'N', 'U', 'T'];
+        this.collectedLetters = JSON.parse(localStorage.getItem('donut_letters') || '[]');
+        this.unlockedCostumes = JSON.parse(localStorage.getItem('donut_costumes') || '["default"]');
         
         // 3D perspective settings
         this.canvas.width = 800;
@@ -22,24 +30,30 @@ class DonutEscapeGame {
         this.lanes = [-1, 0, 1]; // left, center, right
         
         // Initialize game objects
-        this.player = new Player3D(0, 0, 0); // center lane, ground level, at camera
+        this.player = new Player3D(0, 0, 0);
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
         this.particles = [];
         this.movingObstacles = [];
+        this.sprinkles = [];
+        this.letterCollectibles = [];
         
         // Game timers
         this.obstacleTimer = 0;
         this.collectibleTimer = 0;
         this.powerUpTimer = 0;
         this.movingObstacleTimer = 0;
+        this.letterTimer = 0;
         this.difficultyTimer = 0;
         this.pauseTimer = 0;
         this.isPaused = false;
         
         // Initialize everything
         this.initializeEventListeners();
+        this.updateCurrencyDisplay();
+        this.updateLetterProgress();
+        this.updateCostumeMenu();
         this.gameLoop();
     }
     
@@ -57,12 +71,62 @@ class DonutEscapeGame {
         
         // Costume selection
         document.querySelectorAll('.costume-card').forEach(card => {
-            card.addEventListener('click', () => this.selectCostume(card.dataset.costume));
+            card.addEventListener('click', () => this.handleCostumeClick(card));
         });
         
         // Keyboard controls
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
         document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+    }
+    
+    handleCostumeClick(card) {
+        const costume = card.dataset.costume;
+        const cost = parseInt(card.dataset.cost);
+        
+        if (this.unlockedCostumes.includes(costume)) {
+            this.selectCostume(costume);
+        } else {
+            // Try to unlock costume
+            if (this.canAffordCostume(cost)) {
+                this.purchaseCostume(costume, cost);
+            }
+        }
+    }
+    
+    canAffordCostume(cost) {
+        const coinCost = cost;
+        const strawberryCost = Math.floor(cost / 2);
+        const chocolateCost = Math.floor(cost / 2);
+        
+        return this.coins >= coinCost && 
+               this.strawberries >= strawberryCost && 
+               this.chocolates >= chocolateCost;
+    }
+    
+    purchaseCostume(costume, cost) {
+        const coinCost = cost;
+        const strawberryCost = Math.floor(cost / 2);
+        const chocolateCost = Math.floor(cost / 2);
+        
+        this.coins -= coinCost;
+        this.strawberries -= strawberryCost;
+        this.chocolates -= chocolateCost;
+        
+        this.unlockedCostumes.push(costume);
+        this.saveCurrency();
+        this.updateCurrencyDisplay();
+        this.updateCostumeMenu();
+        this.selectCostume(costume);
+    }
+    
+    updateCostumeMenu() {
+        document.querySelectorAll('.costume-card').forEach(card => {
+            const costume = card.dataset.costume;
+            if (this.unlockedCostumes.includes(costume)) {
+                card.classList.remove('locked');
+                card.classList.add('unlocked');
+            }
+        });
     }
     
     handleKeyDown(e) {
@@ -128,6 +192,7 @@ class DonutEscapeGame {
     }
     
     showCostumeMenu() {
+        this.updateCostumeMenu();
         this.showScreen('costumeMenu');
     }
     
@@ -164,17 +229,25 @@ class DonutEscapeGame {
         this.powerUps = [];
         this.particles = [];
         this.movingObstacles = [];
+        this.sprinkles = [];
+        this.letterCollectibles = [];
         this.player.reset();
         this.obstacleTimer = 0;
         this.collectibleTimer = 0;
         this.powerUpTimer = 0;
         this.movingObstacleTimer = 0;
+        this.letterTimer = 0;
         this.difficultyTimer = 0;
         this.pauseTimer = 0;
         this.isPaused = false;
+        this.collectedLetters = []; // Reset letters for this run
     }
     
     gameOver() {
+        // Add collected currency to total
+        this.saveCurrency();
+        this.updateCurrencyDisplay();
+        
         this.gameState = 'gameOver';
         document.getElementById('finalScore').textContent = this.score;
         document.getElementById('finalDistance').textContent = Math.floor(this.distance);
@@ -191,7 +264,7 @@ class DonutEscapeGame {
     
     spawnStaticObstacle() {
         const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const obstacleTypes = ['manhole', 'trashbin', 'puddle', 'cone'];
+        const obstacleTypes = ['cone', 'manhole', 'puddle', 'fork', 'spoon'];
         const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
         const z = 800; // Spawn far away
         
@@ -216,13 +289,35 @@ class DonutEscapeGame {
         this.collectibles.push(new Collectible3D(lane * this.laneWidth, -20, z, type));
     }
     
+    spawnLetter() {
+        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+        const availableLetters = this.donutLetters.filter(letter => 
+            !this.collectedLetters.includes(letter)
+        );
+        
+        if (availableLetters.length > 0) {
+            const letter = availableLetters[Math.floor(Math.random() * availableLetters.length)];
+            const z = 750;
+            this.letterCollectibles.push(new LetterCollectible3D(lane * this.laneWidth, -10, z, letter));
+        }
+    }
+    
     spawnPowerUp() {
         const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const powerUpTypes = ['skateboard', 'glaze'];
+        const powerUpTypes = ['icing_gun', 'honey_cluster', 'glaze'];
         const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
         const z = 650;
         
         this.powerUps.push(new PowerUp3D(lane * this.laneWidth, -15, z, type));
+    }
+    
+    addSprinkle() {
+        const playerX = this.player.lane * this.laneWidth;
+        this.sprinkles.push(new Sprinkle3D(
+            playerX + (Math.random() - 0.5) * 30, 
+            Math.random() * 10, 
+            this.player.z - 20
+        ));
     }
     
     update() {
@@ -265,15 +360,31 @@ class DonutEscapeGame {
         }
         
         this.collectibleTimer++;
-        if (this.collectibleTimer > 150) {
+        if (this.collectibleTimer > 120) {
             this.spawnCollectible();
             this.collectibleTimer = 0;
+        }
+        
+        this.letterTimer++;
+        if (this.letterTimer > 300) { // Letters spawn less frequently
+            this.spawnLetter();
+            this.letterTimer = 0;
+        }
+        
+        // Spawn power-ups less frequently
+        if (Math.random() < 0.005) {
+            this.spawnPowerUp();
+        }
+        
+        // Add sprinkles continuously while running
+        if (Math.random() < 0.3) {
+            this.addSprinkle();
         }
         
         // Update player
         this.player.update();
         
-        // Update obstacles - move them toward camera
+        // Update obstacles
         this.obstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
         this.obstacles = this.obstacles.filter(obstacle => obstacle.z > -100);
         
@@ -285,6 +396,10 @@ class DonutEscapeGame {
         this.collectibles.forEach(collectible => collectible.update(this.gameSpeed));
         this.collectibles = this.collectibles.filter(collectible => collectible.z > -100);
         
+        // Update letter collectibles
+        this.letterCollectibles.forEach(letter => letter.update(this.gameSpeed));
+        this.letterCollectibles = this.letterCollectibles.filter(letter => letter.z > -100);
+        
         // Update power-ups
         this.powerUps.forEach(powerUp => powerUp.update(this.gameSpeed));
         this.powerUps = this.powerUps.filter(powerUp => powerUp.z > -100);
@@ -292,6 +407,10 @@ class DonutEscapeGame {
         // Update particles
         this.particles.forEach(particle => particle.update());
         this.particles = this.particles.filter(particle => particle.life > 0);
+        
+        // Update sprinkles
+        this.sprinkles.forEach(sprinkle => sprinkle.update(this.gameSpeed));
+        this.sprinkles = this.sprinkles.filter(sprinkle => sprinkle.z > -100 && sprinkle.life > 0);
         
         // Check collisions
         this.checkCollisions();
@@ -303,10 +422,9 @@ class DonutEscapeGame {
         
         // Check static obstacle collisions
         this.obstacles.forEach((obstacle, index) => {
-            if (obstacle.z < 50 && obstacle.z > -50) { // Near player depth
+            if (obstacle.z < 50 && obstacle.z > -50) {
                 const distance = Math.abs(obstacle.x - playerX);
                 if (distance < 50 && !this.player.isInvulnerable) {
-                    // Check if player can avoid obstacle
                     let canAvoid = false;
                     if (obstacle.canJumpOver && this.player.isJumping) {
                         canAvoid = true;
@@ -321,7 +439,7 @@ class DonutEscapeGame {
             }
         });
         
-        // Check moving obstacle collisions (cars cannot be avoided by jumping/rolling)
+        // Check moving obstacle collisions
         this.movingObstacles.forEach((obstacle, index) => {
             if (obstacle.z < 50 && obstacle.z > -50) {
                 const distance = Math.abs(obstacle.x - playerX);
@@ -337,8 +455,23 @@ class DonutEscapeGame {
                 const distance = Math.abs(collectible.x - playerX);
                 if (distance < 40) {
                     this.score += collectible.points;
+                    this.addCurrency(collectible.type, 1);
                     this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
                     this.collectibles.splice(index, 1);
+                }
+            }
+        });
+        
+        // Check letter collisions
+        this.letterCollectibles.forEach((letter, index) => {
+            if (letter.z < 50 && letter.z > -50) {
+                const distance = Math.abs(letter.x - playerX);
+                if (distance < 40) {
+                    this.collectedLetters.push(letter.letter);
+                    this.checkDonutComplete();
+                    this.updateLetterProgress();
+                    this.createParticleEffect(letter.x, letter.y, letter.z, 'letter');
+                    this.letterCollectibles.splice(index, 1);
                 }
             }
         });
@@ -349,6 +482,9 @@ class DonutEscapeGame {
                 const distance = Math.abs(powerUp.x - playerX);
                 if (distance < 40) {
                     this.player.activatePowerUp(powerUp.type);
+                    if (powerUp.type === 'icing_gun') {
+                        this.activateIcingGun();
+                    }
                     this.createParticleEffect(powerUp.x, powerUp.y, powerUp.z, 'powerup');
                     this.powerUps.splice(index, 1);
                 }
@@ -356,12 +492,70 @@ class DonutEscapeGame {
         });
     }
     
+    activateIcingGun() {
+        // Collect all nearby collectibles
+        const collectDistance = 150;
+        this.collectibles.forEach((collectible, index) => {
+            if (collectible.z < 200 && collectible.z > -50) {
+                this.addCurrency(collectible.type, 1);
+                this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
+                this.collectibles.splice(index, 1);
+            }
+        });
+    }
+    
+    checkDonutComplete() {
+        if (this.collectedLetters.length === 5) {
+            // Award bonus
+            this.addCurrency('coin', 100);
+            this.addCurrency('strawberry', 100);
+            this.addCurrency('chocolate', 100);
+            this.collectedLetters = []; // Reset for next collection
+        }
+    }
+    
+    addCurrency(type, amount) {
+        switch(type) {
+            case 'coin':
+                this.coins += amount;
+                break;
+            case 'strawberry':
+                this.strawberries += amount;
+                break;
+            case 'chocolate':
+                this.chocolates += amount;
+                break;
+        }
+        this.updateCurrencyDisplay();
+    }
+    
+    updateCurrencyDisplay() {
+        document.getElementById('coins').textContent = `🪙 ${this.coins}`;
+        document.getElementById('strawberries').textContent = `🍓 ${this.strawberries}`;
+        document.getElementById('chocolates').textContent = `🍫 ${this.chocolates}`;
+    }
+    
+    updateLetterProgress() {
+        const progress = this.donutLetters.map(letter => 
+            this.collectedLetters.includes(letter) ? letter : '-'
+        ).join('');
+        document.getElementById('letterProgress').textContent = progress;
+    }
+    
+    saveCurrency() {
+        localStorage.setItem('donut_coins', this.coins.toString());
+        localStorage.setItem('donut_strawberries', this.strawberries.toString());
+        localStorage.setItem('donut_chocolates', this.chocolates.toString());
+        localStorage.setItem('donut_costumes', JSON.stringify(this.unlockedCostumes));
+    }
+    
     createParticleEffect(x, y, z, type) {
         const colors = {
             coin: '#FFD700',
             strawberry: '#FF6B6B',
             chocolate: '#8B4513',
-            powerup: '#FF00FF'
+            letter: '#FF00FF',
+            powerup: '#00FFFF'
         };
         
         for (let i = 0; i < 10; i++) {
@@ -379,27 +573,32 @@ class DonutEscapeGame {
         // Draw 3D lane lines
         this.drawLanes3D();
         
-        // Collect all 3D objects and sort by depth (z-coordinate)
+        // Collect all 3D objects and sort by depth
         const allObjects = [];
         
-        // Add obstacles
+        // Add all objects
         this.obstacles.forEach(obstacle => {
             allObjects.push({ obj: obstacle, type: 'obstacle', z: obstacle.z });
         });
         
-        // Add moving obstacles
         this.movingObstacles.forEach(obstacle => {
             allObjects.push({ obj: obstacle, type: 'movingObstacle', z: obstacle.z });
         });
         
-        // Add collectibles
         this.collectibles.forEach(collectible => {
             allObjects.push({ obj: collectible, type: 'collectible', z: collectible.z });
         });
         
-        // Add power-ups
+        this.letterCollectibles.forEach(letter => {
+            allObjects.push({ obj: letter, type: 'letter', z: letter.z });
+        });
+        
         this.powerUps.forEach(powerUp => {
             allObjects.push({ obj: powerUp, type: 'powerUp', z: powerUp.z });
+        });
+        
+        this.sprinkles.forEach(sprinkle => {
+            allObjects.push({ obj: sprinkle, type: 'sprinkle', z: sprinkle.z });
         });
         
         // Add player
@@ -456,7 +655,7 @@ class DonutEscapeGame {
     drawLanes3D() {
         // Draw perspective lane dividers
         for (let i = -1; i <= 1; i++) {
-            if (i === 0) continue; // Skip center
+            if (i === 0) continue;
             
             this.ctx.strokeStyle = '#FFFFFF';
             this.ctx.lineWidth = 3;
@@ -493,13 +692,13 @@ class DonutEscapeGame {
     }
 }
 
-// 3D Player class
+// 3D Player class with sprinkle trail
 class Player3D {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.lane = 0; // -1, 0, 1 for left, center, right
+        this.lane = 0;
         this.targetLane = 0;
         this.isJumping = false;
         this.isRolling = false;
@@ -562,7 +761,7 @@ class Player3D {
         // Jump physics
         if (this.isJumping) {
             this.jumpHeight += this.jumpSpeed;
-            this.jumpSpeed += 0.8; // gravity
+            this.jumpSpeed += 0.8;
             
             if (this.jumpHeight >= 0) {
                 this.jumpHeight = 0;
@@ -572,7 +771,7 @@ class Player3D {
             }
         }
         
-        // Update y position based on jump height and rolling
+        // Update y position
         this.y = -this.jumpHeight + (this.isRolling ? 20 : 0);
         
         // Power-up timer
@@ -612,12 +811,15 @@ class Player3D {
         // Always draw the donut base
         ctx.fillText('🍩', proj.x, proj.y);
         
-        // Add costume on top of donut
+        // Add costume accessories
         const costumeSprites = {
             default: '',
-            cop: '👕',
+            police: '👕',
             rockstar: '🎸',
-            alien: '👽'
+            alien: '👽',
+            chef: '👨‍🍳',
+            superhero: '🦸‍♂️',
+            sailor: '⚓'
         };
         
         if (this.costume !== 'default' && costumeSprites[this.costume]) {
@@ -644,15 +846,15 @@ class Player3D {
     }
 }
 
-// 3D Obstacle class
+// Updated Obstacle class with new obstacle types
 class Obstacle3D {
     constructor(x, y, z, type) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.type = type;
-        this.canJumpOver = ['manhole', 'puddle', 'cone'].includes(type);
-        this.canRollUnder = ['feet'].includes(type);
+        this.canJumpOver = ['manhole', 'puddle'].includes(type);
+        this.canRollUnder = ['fork', 'spoon'].includes(type);
         this.animationFrame = 0;
     }
     
@@ -665,10 +867,11 @@ class Obstacle3D {
         const proj = game.project3D(this.x, this.y, this.z);
         
         const obstacleSprites = {
+            cone: '🚧',
             manhole: '🕳️',
-            trashbin: '🗑️',
             puddle: '💧',
-            cone: '🚧'
+            fork: '🍴',
+            spoon: '🥄'
         };
         
         ctx.font = `${60 * proj.scale}px Arial`;
@@ -677,7 +880,7 @@ class Obstacle3D {
     }
 }
 
-// 3D Moving Obstacle class
+// Moving obstacles remain the same
 class MovingObstacle3D {
     constructor(x, y, z, type, endX) {
         this.x = x;
@@ -708,7 +911,7 @@ class MovingObstacle3D {
         if (this.type === 'car') {
             const carAnimation = ['🚕', '🚖', '🚗', '🚙'];
             sprite = carAnimation[Math.floor(this.animationFrame / 15) % carAnimation.length];
-        } else { // feet
+        } else {
             const feetAnimation = ['👟', '👠', '🥿', '👢'];
             sprite = feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
         }
@@ -719,7 +922,7 @@ class MovingObstacle3D {
     }
 }
 
-// 3D Collectible class
+// Collectible class (same as before)
 class Collectible3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -744,12 +947,10 @@ class Collectible3D {
             chocolate: '🍫'
         };
         
-        // Glow effect
         ctx.save();
         ctx.shadowBlur = 15 * proj.scale;
         ctx.shadowColor = '#FFD700';
         
-        // Floating animation
         const floatOffset = Math.sin(this.animationFrame * 0.1) * 5 * proj.scale;
         
         ctx.font = `${30 * proj.scale}px Arial`;
@@ -760,7 +961,47 @@ class Collectible3D {
     }
 }
 
-// 3D PowerUp class
+// New Letter Collectible class
+class LetterCollectible3D {
+    constructor(x, y, z, letter) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.letter = letter;
+        this.animationFrame = 0;
+    }
+    
+    update(speed) {
+        this.z -= speed;
+        this.animationFrame++;
+    }
+    
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
+        ctx.save();
+        ctx.shadowBlur = 20 * proj.scale;
+        ctx.shadowColor = '#FF00FF';
+        
+        // Pulsing animation
+        const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.3) * proj.scale;
+        
+        // Draw letter background
+        ctx.fillStyle = '#FF00FF';
+        ctx.font = `${50 * scale}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText('⬜', proj.x, proj.y);
+        
+        // Draw letter
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = `${30 * scale}px Arial`;
+        ctx.fillText(this.letter, proj.x, proj.y);
+        
+        ctx.restore();
+    }
+}
+
+// Updated PowerUp class with new power-ups
 class PowerUp3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -779,16 +1020,15 @@ class PowerUp3D {
         const proj = game.project3D(this.x, this.y, this.z);
         
         const powerUpSprites = {
-            skateboard: '🛹',
+            icing_gun: '🔫',
+            honey_cluster: '🍯',
             glaze: '✨'
         };
         
-        // Power-up glow
         ctx.save();
         ctx.shadowBlur = 20 * proj.scale;
-        ctx.shadowColor = '#FF00FF';
+        ctx.shadowColor = '#00FFFF';
         
-        // Pulsing animation
         const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.2) * proj.scale;
         ctx.font = `${35 * scale}px Arial`;
         ctx.textAlign = 'center';
@@ -798,7 +1038,43 @@ class PowerUp3D {
     }
 }
 
-// 3D Particle class
+// New Sprinkle class for trail effect
+class Sprinkle3D {
+    constructor(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.vx = (Math.random() - 0.5) * 2;
+        this.vy = Math.random() * 2;
+        this.vz = Math.random() * 2;
+        this.life = 60;
+        this.maxLife = 60;
+        this.colors = ['#FF69B4', '#00FFFF', '#FFFF00', '#FF6347', '#32CD32'];
+        this.color = this.colors[Math.floor(Math.random() * this.colors.length)];
+    }
+    
+    update(gameSpeed) {
+        this.z -= gameSpeed;
+        this.x += this.vx;
+        this.y += this.vy;
+        this.z += this.vz;
+        this.life--;
+    }
+    
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
+        ctx.save();
+        ctx.globalAlpha = this.life / this.maxLife;
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.arc(proj.x, proj.y, 2 * proj.scale, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+}
+
+// Particle class (same as before)
 class Particle3D {
     constructor(x, y, z, color) {
         this.x = x;
@@ -816,7 +1092,7 @@ class Particle3D {
         this.x += this.vx;
         this.y += this.vy;
         this.z += this.vz;
-        this.vy += 0.3; // gravity
+        this.vy += 0.3;
         this.life--;
     }
     
@@ -833,7 +1109,7 @@ class Particle3D {
     }
 }
 
-// Initialize game when page loads
+// Initialize game
 let game;
 document.addEventListener('DOMContentLoaded', () => {
     game = new DonutEscapeGame();
