@@ -15,7 +15,7 @@ class MagicTilesGame {
         this.canvas.height = 600;
         this.lanes = 4;
         this.laneWidth = this.canvas.width / this.lanes;
-        this.fallSpeed = 3;
+        this.fallSpeed = 0.8; // Much slower fall speed
         this.hitZone = this.canvas.height - 100;
         this.hitTolerance = 40;
         
@@ -29,6 +29,9 @@ class MagicTilesGame {
         this.startTime = 0;
         this.gameTime = 0;
         this.isPaused = false;
+        this.speedMultiplier = 1.0; // For song repeats
+        this.songRepeats = 0;
+        this.gameOverReason = '';
         
         // Input handling
         this.activeTouches = new Set();
@@ -45,35 +48,337 @@ class MagicTilesGame {
     
     initializeSongs() {
         return [
+            // Royalty-Free Pop Songs (inspired by current hits)
             {
-                id: 'sample1',
-                title: 'Rhythmic Beats',
-                artist: 'Magic Tiles Studio',
+                id: 'pop1',
+                title: 'Summer Vibes',
+                artist: 'Sunny Day',
+                genre: 'Pop',
                 difficulty: 'Easy',
                 bpm: 120,
-                duration: 60, // seconds
-                audioFile: null, // We'll use a generated beat
-                notes: this.generateSampleNotes(120, 60) // BPM, duration
+                duration: 180,
+                audioFile: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // placeholder
+                notes: this.getSummerVibesNotes()
             },
             {
-                id: 'sample2',
-                title: 'Electronic Dance',
-                artist: 'Digital Harmony',
+                id: 'pop2',
+                title: 'Electric Dreams',
+                artist: 'Neon Lights',
+                genre: 'Pop',
                 difficulty: 'Medium',
-                bpm: 140,
-                duration: 45,
+                bpm: 128,
+                duration: 200,
                 audioFile: null,
-                notes: this.generateSampleNotes(140, 45, 'medium')
+                notes: this.getElectricDreamsNotes()
             },
             {
-                id: 'sample3',
-                title: 'Speed Challenge',
-                artist: 'Tempo Masters',
+                id: 'pop3',
+                title: 'Midnight City',
+                artist: 'Urban Echo',
+                genre: 'Pop',
                 difficulty: 'Hard',
-                bpm: 180,
-                duration: 30,
+                bpm: 140,
+                duration: 220,
                 audioFile: null,
-                notes: this.generateSampleNotes(180, 30, 'hard')
+                notes: this.getMidnightCityNotes()
+            },
+            {
+                id: 'pop4',
+                title: 'Neon Nights',
+                artist: 'Crystal Pop',
+                genre: 'Pop',
+                difficulty: 'Medium',
+                bpm: 125,
+                duration: 195,
+                audioFile: null,
+                notes: this.getNeonNightsNotes()
+            },
+            {
+                id: 'pop5',
+                title: 'Starlight Dance',
+                artist: 'Pop Galaxy',
+                genre: 'Pop',
+                difficulty: 'Hard',
+                bpm: 135,
+                duration: 210,
+                audioFile: null,
+                notes: this.getStarlightDanceNotes()
+            },
+            
+            // Hip-Hop Tracks (royalty-free style)
+            {
+                id: 'hiphop1',
+                title: 'Street Rhythm',
+                artist: 'Beat Master',
+                genre: 'Hip-Hop',
+                difficulty: 'Medium',
+                bpm: 90,
+                duration: 180,
+                audioFile: null,
+                notes: this.getStreetRhythmNotes()
+            },
+            {
+                id: 'hiphop2',
+                title: 'Underground Flow',
+                artist: 'MC Freestyle',
+                genre: 'Hip-Hop',
+                difficulty: 'Hard',
+                bpm: 95,
+                duration: 200,
+                audioFile: null,
+                notes: this.getUndergroundFlowNotes()
+            },
+            {
+                id: 'hiphop3',
+                title: 'City Lights',
+                artist: 'Urban Prophet',
+                genre: 'Hip-Hop',
+                difficulty: 'Easy',
+                bpm: 88,
+                duration: 175,
+                audioFile: null,
+                notes: this.getCityLightsNotes()
+            },
+            {
+                id: 'hiphop4',
+                title: 'Boom Bap Classic',
+                artist: 'Old School MC',
+                genre: 'Hip-Hop',
+                difficulty: 'Medium',
+                bpm: 92,
+                duration: 190,
+                audioFile: null,
+                notes: this.getBoomBapClassicNotes()
+            },
+            
+            // Electronic Dance Music
+            {
+                id: 'edm1',
+                title: 'Digital Pulse',
+                artist: 'Synth Wave',
+                genre: 'Electronic',
+                difficulty: 'Medium',
+                bpm: 130,
+                duration: 240,
+                audioFile: null,
+                notes: this.getDigitalPulseNotes()
+            },
+            {
+                id: 'edm2',
+                title: 'Bass Revolution',
+                artist: 'Drop Zone',
+                genre: 'Electronic',
+                difficulty: 'Hard',
+                bpm: 140,
+                duration: 280,
+                audioFile: null,
+                notes: this.getBassRevolutionNotes()
+            },
+            {
+                id: 'edm3',
+                title: 'Cyber Dreams',
+                artist: 'Neon Wave',
+                genre: 'Electronic',
+                difficulty: 'Easy',
+                bpm: 120,
+                duration: 220,
+                audioFile: null,
+                notes: this.getCyberDreamsNotes()
+            },
+            {
+                id: 'edm4',
+                title: 'Festival Anthem',
+                artist: 'Main Stage',
+                genre: 'Electronic',
+                difficulty: 'Hard',
+                bpm: 128,
+                duration: 300,
+                audioFile: null,
+                notes: this.getFestivalAnthemNotes()
+            },
+            
+            // Indie/Alternative (royalty-free)
+            {
+                id: 'indie1',
+                title: 'Coffee Shop Dreams',
+                artist: 'Acoustic Soul',
+                genre: 'Indie',
+                difficulty: 'Easy',
+                bpm: 110,
+                duration: 200,
+                audioFile: null,
+                notes: this.getCoffeeShopDreamsNotes()
+            },
+            {
+                id: 'indie2',
+                title: 'Road Trip Anthem',
+                artist: 'Open Highway',
+                genre: 'Indie',
+                difficulty: 'Medium',
+                bpm: 120,
+                duration: 220,
+                audioFile: null,
+                notes: this.getRoadTripAnthemNotes()
+            },
+            {
+                id: 'indie3',
+                title: 'Sunset Boulevard',
+                artist: 'Vintage Soul',
+                genre: 'Indie',
+                difficulty: 'Medium',
+                bpm: 115,
+                duration: 240,
+                audioFile: null,
+                notes: this.getSunsetBoulevardNotes()
+            },
+            {
+                id: 'indie4',
+                title: 'Midnight Train',
+                artist: 'Folk Electric',
+                genre: 'Indie',
+                difficulty: 'Hard',
+                bpm: 130,
+                duration: 250,
+                audioFile: null,
+                notes: this.getMidnightTrainNotes()
+            },
+            
+            // Rock (inspired by popular rock)
+            {
+                id: 'rock1',
+                title: 'Thunder Strike',
+                artist: 'Electric Storm',
+                genre: 'Rock',
+                difficulty: 'Medium',
+                bpm: 125,
+                duration: 200,
+                audioFile: null,
+                notes: this.getThunderStrikeNotes()
+            },
+            {
+                id: 'rock2',
+                title: 'Fire Mountain',
+                artist: 'Metal Core',
+                genre: 'Rock',
+                difficulty: 'Hard',
+                bpm: 160,
+                duration: 240,
+                audioFile: null,
+                notes: this.getFireMountainNotes()
+            },
+            {
+                id: 'rock3',
+                title: 'Electric Highway',
+                artist: 'Power Drive',
+                genre: 'Rock',
+                difficulty: 'Easy',
+                bpm: 110,
+                duration: 200,
+                audioFile: null,
+                notes: this.getElectricHighwayNotes()
+            },
+            {
+                id: 'rock4',
+                title: 'Metal Storm',
+                artist: 'Iron Thunder',
+                genre: 'Rock',
+                difficulty: 'Hard',
+                bpm: 150,
+                duration: 260,
+                audioFile: null,
+                notes: this.getMetalStormNotes()
+            },
+            
+            // World/Fusion Music
+            {
+                id: 'world1',
+                title: 'Mystic Journey',
+                artist: 'World Fusion',
+                genre: 'World',
+                difficulty: 'Medium',
+                bpm: 115,
+                duration: 250,
+                audioFile: null,
+                notes: this.getMysticJourneyNotes()
+            },
+            {
+                id: 'world2',
+                title: 'Desert Winds',
+                artist: 'Ethnic Beats',
+                genre: 'World',
+                difficulty: 'Hard',
+                bpm: 130,
+                duration: 280,
+                audioFile: null,
+                notes: this.getDesertWindsNotes()
+            },
+            {
+                id: 'world3',
+                title: 'Temple Bells',
+                artist: 'Sacred Sound',
+                genre: 'World',
+                difficulty: 'Easy',
+                bpm: 100,
+                duration: 230,
+                audioFile: null,
+                notes: this.getTempleBellsNotes()
+            },
+            {
+                id: 'world4',
+                title: 'Tribal Dance',
+                artist: 'Ancient Rhythm',
+                genre: 'World',
+                difficulty: 'Medium',
+                bpm: 125,
+                duration: 270,
+                audioFile: null,
+                notes: this.getTribalDanceNotes()
+            },
+            
+            // Lo-Fi Hip Hop (very popular genre)
+            {
+                id: 'lofi1',
+                title: 'Study Session',
+                artist: 'Chill Beats',
+                genre: 'Lo-Fi',
+                difficulty: 'Easy',
+                bpm: 85,
+                duration: 180,
+                audioFile: null,
+                notes: this.getStudySessionNotes()
+            },
+            {
+                id: 'lofi2',
+                title: 'Rainy Day Vibes',
+                artist: 'Lazy Sunday',
+                genre: 'Lo-Fi',
+                difficulty: 'Medium',
+                bpm: 90,
+                duration: 200,
+                audioFile: null,
+                notes: this.getRainyDayVibesNotes()
+            },
+            {
+                id: 'lofi3',
+                title: 'Late Night Study',
+                artist: 'Mellow Beats',
+                genre: 'Lo-Fi',
+                difficulty: 'Easy',
+                bpm: 80,
+                duration: 180,
+                audioFile: null,
+                notes: this.getLateNightStudyNotes()
+            },
+            {
+                id: 'lofi4',
+                title: 'Tokyo Nights',
+                artist: 'City Chill',
+                genre: 'Lo-Fi',
+                difficulty: 'Medium',
+                bpm: 95,
+                duration: 220,
+                audioFile: null,
+                notes: this.getTokyoNightsNotes()
             }
         ];
     }
@@ -126,6 +431,835 @@ class MagicTilesGame {
                     type: 'hold',
                     duration: beatInterval * (1 + Math.floor(Math.random() * 3))
                 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Royalty-Free Song Patterns
+    getSummerVibesNotes() {
+        // Easy pop song with typical verse-chorus structure
+        const beat = 500; // 120 BPM
+        const notes = [];
+        
+        // Verse pattern (simple)
+        for (let i = 0; i < 16; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+        }
+        
+        // Chorus pattern (more active)
+        for (let i = 16; i < 32; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getElectricDreamsNotes() {
+        // Medium pop with synth elements
+        const beat = 468; // 128 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 64; i++) {
+            // Kick on 1 and 3
+            if (i % 4 === 0 || i % 4 === 2) {
+                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            }
+            // Snare on 2 and 4
+            if (i % 4 === 1 || i % 4 === 3) {
+                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            }
+            // Synth melody
+            if (i % 8 === 4 || i % 8 === 6) {
+                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            }
+            // Build ups
+            if (i >= 48 && i % 2 === 0) {
+                notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getMidnightCityNotes() {
+        // Hard pop with complex patterns
+        const beat = 428; // 140 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 80; i++) {
+            // Complex drum pattern
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 3 || i % 8 === 7) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Rapid synth patterns
+            if (i >= 32 && i < 64 && i % 2 === 0) {
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+            
+            // Climax holds
+            if (i % 16 === 15) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'hold', duration: beat * 2 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getStreetRhythmNotes() {
+        // Hip-hop with classic boom-bap
+        const beat = 666; // 90 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 48; i++) {
+            // Kick on 1 and 3
+            if (i % 4 === 0 || i % 4 === 2) {
+                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            }
+            // Snare on 2 and 4 (classic hip-hop)
+            if (i % 4 === 1 || i % 4 === 3) {
+                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            }
+            // Hi-hat patterns
+            if (i % 2 === 1) {
+                notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getUndergroundFlowNotes() {
+        // Complex hip-hop with triplets
+        const beat = 631; // 95 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 60; i++) {
+            // Heavy kick
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            
+            // Snare with ghost notes
+            if (i % 4 === 1 || i % 4 === 3) {
+                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+                if (i % 8 === 3) notes.push({ time: i * beat + beat/4, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Rapid hi-hats and triplets
+            if (i % 8 === 7) {
+                for (let j = 0; j < 3; j++) {
+                    notes.push({ time: i * beat + (beat/3) * j, lane: 3, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // EDM Songs
+    getDigitalPulseNotes() {
+        const beat = 461; // 130 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 96; i++) {
+            // Four on the floor
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            
+            // Build-up sections
+            if (i >= 32 && i < 64) {
+                if (i % 2 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+                if (i % 8 === 6) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Drop section
+            if (i >= 64) {
+                if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+                if (i % 16 === 15) notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 2 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getBassRevolutionNotes() {
+        const beat = 428; // 140 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 112; i++) {
+            // Heavy kick pattern
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            
+            // Complex EDM patterns
+            if (i % 8 === 2 || i % 8 === 6) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            
+            // Rapid fire sections
+            if (i >= 48 && i < 80 && i % 2 === 0) {
+                notes.push({ time: i * beat + beat/2, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Bass drops
+            if (i % 32 === 31) {
+                for (let j = 0; j < 4; j++) {
+                    notes.push({ time: i * beat + (beat/4) * j, lane: j, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Indie Songs
+    getCoffeeShopDreamsNotes() {
+        const beat = 545; // 110 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 44; i++) {
+            // Gentle acoustic pattern
+            if (i % 8 === 0 || i % 8 === 3 || i % 8 === 5) {
+                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            }
+            if (i % 8 === 2 || i % 8 === 6) {
+                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            }
+            // Sustained chords
+            if (i % 16 === 7 || i % 16 === 15) {
+                notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 3 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getRoadTripAnthemNotes() {
+        const beat = 500; // 120 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 56; i++) {
+            // Driving indie rock pattern
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 3 || i % 8 === 7) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Guitar solos
+            if (i >= 32 && i % 2 === 1) {
+                notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Rock Songs
+    getThunderStrikeNotes() {
+        const beat = 480; // 125 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 50; i++) {
+            // Rock pattern with power chords
+            if (i % 4 === 0 || i % 4 === 2) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 1 || i % 4 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            
+            // Guitar riffs
+            if (i % 8 === 4 || i % 8 === 6) {
+                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getFireMountainNotes() {
+        const beat = 375; // 160 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 96; i++) {
+            // Fast metal patterns
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 1 || i % 4 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            
+            // Double bass and rapid patterns
+            if (i % 8 === 4) {
+                for (let j = 0; j < 4; j++) {
+                    notes.push({ time: i * beat + (beat/4) * j, lane: (2 + j % 2), type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // World Music
+    getMysticJourneyNotes() {
+        const beat = 521; // 115 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 60; i++) {
+            // Ethnic rhythm patterns
+            if (i % 6 === 0 || i % 6 === 2 || i % 6 === 4) {
+                notes.push({ time: i * beat, lane: (i % 6) / 2, type: 'normal', duration: 0 });
+            }
+            // Sustained ethnic instruments
+            if (i % 12 === 8) {
+                notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 4 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getDesertWindsNotes() {
+        const beat = 461; // 130 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 84; i++) {
+            // Complex world fusion
+            if (i % 5 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 7 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 9 === 6) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Ornamental patterns
+            if (i % 16 === 12) {
+                for (let j = 0; j < 3; j++) {
+                    notes.push({ time: i * beat + (beat/3) * j, lane: 3, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Lo-Fi Hip Hop
+    getStudySessionNotes() {
+        const beat = 705; // 85 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 36; i++) {
+            // Chill lo-fi pattern
+            if (i % 8 === 0 || i % 8 === 6) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 16 === 10) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 4 });
+            
+            // Vinyl crackle simulation
+            if (i % 12 === 8) notes.push({ time: i * beat + beat/4, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getRainyDayVibesNotes() {
+        const beat = 666; // 90 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 45; i++) {
+            // Relaxed lo-fi with jazz influence
+            if (i % 6 === 0 || i % 6 === 4) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 12 === 7) notes.push({ time: i * beat + beat/3, lane: 2, type: 'normal', duration: 0 });
+            
+            // Ambient pads
+            if (i % 16 === 15) notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 6 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional Pop Songs
+    getNeonNightsNotes() {
+        const beat = 480; // 125 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 58; i++) {
+            // Synthwave-inspired pattern
+            if (i % 8 === 0 || i % 8 === 4) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 2 || i % 8 === 6) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 16 === 10 || i % 16 === 14) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Neon arpeggios
+            if (i >= 32 && i % 4 === 1) {
+                notes.push({ time: i * beat + beat/4, lane: 3, type: 'normal', duration: 0 });
+            }
+            
+            if (i % 32 === 31) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 2 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getStarlightDanceNotes() {
+        const beat = 444; // 135 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 70; i++) {
+            // Energetic dance pattern
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 3 || i % 8 === 7) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Fast synth runs
+            if (i >= 48 && i % 2 === 0) {
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+            
+            // Build-up holds
+            if (i % 16 === 15 && i >= 32) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'hold', duration: beat * 3 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional Hip-Hop Songs
+    getCityLightsNotes() {
+        const beat = 681; // 88 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 42; i++) {
+            // Chill hip-hop pattern
+            if (i % 8 === 0 || i % 8 === 6) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 4 === 3) notes.push({ time: i * beat + beat/3, lane: 2, type: 'normal', duration: 0 });
+            
+            // Jazz samples
+            if (i % 16 === 12) notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 2 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getBoomBapClassicNotes() {
+        const beat = 652; // 92 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 52; i++) {
+            // Classic boom-bap
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 1 || i % 4 === 3) {
+                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Scratch samples
+            if (i % 16 === 8) {
+                for (let j = 0; j < 2; j++) {
+                    notes.push({ time: i * beat + (beat/2) * j, lane: 3, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional EDM Songs
+    getCyberDreamsNotes() {
+        const beat = 500; // 120 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 52; i++) {
+            // Ambient EDM start
+            if (i % 8 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 16 === 8) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 4 });
+            
+            // Gradual build-up
+            if (i >= 24) {
+                if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+                if (i % 8 === 6) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getFestivalAnthemNotes() {
+        const beat = 468; // 128 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 96; i++) {
+            // Festival main stage energy
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            
+            // Complex festival patterns
+            if (i >= 32) {
+                if (i % 2 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+                if (i % 8 === 4) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Festival drops
+            if (i >= 64 && i % 4 === 0) {
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+            
+            // Epic holds
+            if (i % 32 === 31) {
+                notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 4 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional Indie Songs
+    getSunsetBoulevardNotes() {
+        const beat = 521; // 115 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 55; i++) {
+            // Dreamy indie pattern
+            if (i % 6 === 0 || i % 6 === 4) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 12 === 8) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 3 });
+            
+            // Guitar arpeggios
+            if (i >= 32 && i % 4 === 1) {
+                notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getMidnightTrainNotes() {
+        const beat = 461; // 130 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 65; i++) {
+            // Folk-rock with electric elements
+            if (i % 4 === 0 || i % 4 === 2) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 3 || i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            
+            // Electric guitar solos
+            if (i >= 40 && i % 2 === 1) {
+                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional Rock Songs
+    getElectricHighwayNotes() {
+        const beat = 545; // 110 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 44; i++) {
+            // Classic rock cruising pattern
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 4) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 2 || i % 8 === 6) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Guitar solos
+            if (i % 16 === 12) {
+                for (let j = 0; j < 3; j++) {
+                    notes.push({ time: i * beat + (beat/3) * j, lane: 3, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getMetalStormNotes() {
+        const beat = 400; // 150 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 98; i++) {
+            // Aggressive metal patterns
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            
+            // Blast beats and complex patterns
+            if (i % 8 === 4) {
+                for (let j = 0; j < 4; j++) {
+                    notes.push({ time: i * beat + (beat/4) * j, lane: (2 + j % 2), type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Breakdown sections
+            if (i % 32 >= 24 && i % 32 < 32) {
+                notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional World Music Songs
+    getTempleBellsNotes() {
+        const beat = 600; // 100 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 46; i++) {
+            // Meditative temple pattern
+            if (i % 8 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 12 === 4) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 16 === 8) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 6 });
+            
+            // Bell resonances
+            if (i % 24 === 18) {
+                notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getTribalDanceNotes() {
+        const beat = 480; // 125 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 68; i++) {
+            // Tribal drum patterns
+            if (i % 6 === 0 || i % 6 === 3) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 8 === 2 || i % 8 === 6) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 12 === 8) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            
+            // Polyrhythmic elements
+            if (i % 7 === 5) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Additional Lo-Fi Songs
+    getLateNightStudyNotes() {
+        const beat = 750; // 80 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 32; i++) {
+            // Very chill lo-fi
+            if (i % 12 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 16 === 8) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 20 === 16) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 6 });
+            
+            // Minimal elements
+            if (i % 24 === 20) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    getTokyoNightsNotes() {
+        const beat = 631; // 95 BPM
+        const notes = [];
+        
+        for (let i = 0; i < 52; i++) {
+            // Japanese-influenced lo-fi
+            if (i % 8 === 0 || i % 8 === 5) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 10 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 14 === 9) notes.push({ time: i * beat + beat/4, lane: 2, type: 'normal', duration: 0 });
+            
+            // Koto-inspired patterns
+            if (i % 16 === 12) {
+                for (let j = 0; j < 3; j++) {
+                    notes.push({ time: i * beat + (beat/5) * j, lane: 3, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Hip-Hop Patterns - Heavy on 2 and 4, with triplets
+    getHipHopPattern(bpm, duration, difficulty) {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000;
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            
+            // Heavy emphasis on 2 and 4 (snare pattern)
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                notes.push({ time, lane: 1, type: 'normal', duration: 0 });
+                notes.push({ time, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Kick on 1 and 3
+            if (beat % 4 === 0 || beat % 4 === 2) {
+                notes.push({ time, lane: 0, type: 'normal', duration: 0 });
+            }
+            
+            // Hi-hat and rapid patterns
+            if (difficulty === 'hard') {
+                for (let i = 0; i < 4; i++) {
+                    if (Math.random() < 0.3) {
+                        notes.push({ time: time + (beatInterval/4) * i, lane: 3, type: 'normal', duration: 0 });
+                    }
+                }
+            }
+            
+            // Triplet flows
+            if (beat % 8 === 7 && difficulty !== 'easy') {
+                for (let i = 0; i < 3; i++) {
+                    notes.push({ time: time + (beatInterval/3) * i, lane: (i + 1) % 4, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Jazz Patterns - Swing feel, complex rhythms
+    getJazzPattern(bpm, duration, difficulty) {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000;
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        const swingRatio = 2/3; // Swing eighth notes
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            
+            // Walking bass line
+            if (beat % 1 === 0) {
+                notes.push({ time, lane: 0, type: 'normal', duration: 0 });
+            }
+            
+            // Swing rhythm on 2 and 4
+            if (beat % 4 === 1 || beat % 4 === 3) {
+                notes.push({ time, lane: 1, type: 'normal', duration: 0 });
+                // Off-beat swing
+                notes.push({ time: time + beatInterval * swingRatio, lane: 2, type: 'normal', duration: 0 });
+            }
+            
+            // Improvisation-style runs
+            if (difficulty === 'hard' && beat % 16 >= 12) {
+                for (let i = 0; i < 8; i++) {
+                    if (Math.random() < 0.4) {
+                        notes.push({ time: time + (beatInterval/8) * i, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+                    }
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Classical Patterns - Complex counterpoint and scales
+    getClassicalPattern(bpm, duration, difficulty) {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000;
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        
+        // Scale patterns
+        const scales = [
+            [0, 1, 2, 3, 2, 1, 0, 1], // Ascending/descending
+            [0, 2, 1, 3, 0, 2, 1, 3], // Arpeggios
+            [1, 3, 0, 2, 1, 3, 0, 2]  // Counterpoint
+        ];
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            const phrase = Math.floor(beat / 8);
+            const scale = scales[phrase % scales.length];
+            
+            // Main melody
+            notes.push({ time, lane: scale[beat % scale.length], type: 'normal', duration: 0 });
+            
+            // Accompaniment patterns
+            if (beat % 4 === 0) {
+                notes.push({ time, lane: (scale[0] + 2) % 4, type: 'normal', duration: 0 });
+            }
+            
+            // Rapid passages for virtuoso pieces
+            if (difficulty === 'hard' && beat % 16 >= 8 && beat % 16 < 12) {
+                for (let i = 0; i < 4; i++) {
+                    notes.push({ time: time + (beatInterval/4) * i, lane: (scale[i % scale.length] + i) % 4, type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Sustained notes
+            if (beat % 8 === 7) {
+                notes.push({ time, lane: scale[0], type: 'hold', duration: beatInterval * 2 });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // Indo-Western Fusion Patterns - Mix of traditional and modern
+    getFusionPattern(bpm, duration, difficulty) {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000;
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        
+        // Tabla-inspired patterns
+        const tablaPattern = [0, 2, 1, 0, 3, 1, 2, 3];
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            const section = Math.floor(beat / 32);
+            
+            // Classical Indian rhythm patterns
+            if (section % 2 === 0) {
+                notes.push({ time, lane: tablaPattern[beat % tablaPattern.length], type: 'normal', duration: 0 });
+            } else {
+                // Western pop chorus
+                if (beat % 4 === 0 || beat % 4 === 2) {
+                    notes.push({ time, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Sitar-style ornaments
+            if (difficulty !== 'easy' && beat % 8 === 5) {
+                for (let i = 0; i < 3; i++) {
+                    notes.push({ time: time + (beatInterval/6) * i, lane: (2 + i) % 4, type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Modern EDM drops mixed with traditional
+            if (beat % 64 === 63 && difficulty === 'hard') {
+                for (let i = 0; i < 4; i++) {
+                    notes.push({ time: time + (beatInterval/4) * i, lane: i, type: 'normal', duration: 0 });
+                }
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
+    }
+    
+    // EDM Patterns - Build-ups, drops, and electronic elements
+    getEDMPattern(bpm, duration, difficulty) {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000;
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            const section = Math.floor(beat / 32); // 32-beat sections
+            const sectionBeat = beat % 32;
+            
+            // Four on the floor kick pattern
+            if (beat % 4 === 0) {
+                notes.push({ time, lane: 0, type: 'normal', duration: 0 });
+            }
+            
+            // Build-up sections (every other section)
+            if (section % 4 === 2) {
+                // Increasing intensity
+                const intensity = sectionBeat / 32;
+                if (Math.random() < intensity) {
+                    notes.push({ time, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Drop sections (explosive)
+            if (section % 4 === 3) {
+                // Heavy pattern on drop
+                notes.push({ time, lane: sectionBeat % 4, type: 'normal', duration: 0 });
+                if (difficulty === 'hard') {
+                    notes.push({ time: time + beatInterval/2, lane: (sectionBeat + 2) % 4, type: 'normal', duration: 0 });
+                }
+            }
+            
+            // Breakdown/quiet sections
+            if (section % 4 === 1 && sectionBeat % 8 === 0) {
+                notes.push({ time, lane: 1, type: 'hold', duration: beatInterval * 2 });
             }
         }
         
@@ -210,7 +1344,12 @@ class MagicTilesGame {
         
         if (isPressed) {
             tapZone.classList.add('active');
-            this.checkTileHit(lane);
+            const hit = this.checkTileHit(lane);
+            if (!hit) {
+                // Wrong tap - game over!
+                this.gameOver('Wrong tap!');
+                return;
+            }
         } else {
             tapZone.classList.remove('active');
             this.checkTileRelease(lane);
@@ -227,6 +1366,7 @@ class MagicTilesGame {
             card.innerHTML = `
                 <div class=\"song-title\">${song.title}</div>
                 <div class=\"song-artist\">${song.artist}</div>
+                <div class=\"song-genre\">${song.genre}</div>
                 <div class=\"song-difficulty\">Difficulty: ${song.difficulty} | BPM: ${song.bpm}</div>
             `;
             
@@ -284,6 +1424,9 @@ class MagicTilesGame {
         this.startTime = performance.now();
         this.gameTime = 0;
         this.isPaused = false;
+        this.speedMultiplier = 1.0; // Reset speed
+        this.songRepeats = 0;
+        this.gameOverReason = '';
         this.updateUI();
     }
     
@@ -389,7 +1532,10 @@ class MagicTilesGame {
         
         if (bestTile) {
             this.hitTile(bestTile, bestDistance);
+            return true;
         }
+        
+        return false; // No tile to hit
     }
     
     checkTileRelease(lane) {
@@ -470,15 +1616,15 @@ class MagicTilesGame {
         
         this.gameTime = performance.now() - this.startTime;
         
-        // Update tiles
+        // Update tiles with speed multiplier
         for (const tile of this.tiles) {
-            tile.update(this.gameTime, this.fallSpeed);
+            tile.update(this.gameTime * this.speedMultiplier, this.fallSpeed);
             
             // Check for missed tiles
             if (!tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance) {
                 tile.missed = true;
-                this.combo = 0; // Reset combo on miss
-                console.log(`Missed tile in lane ${tile.lane}`);
+                this.gameOver('Missed a tile!');
+                return;
             }
         }
         
@@ -488,28 +1634,113 @@ class MagicTilesGame {
             (tile.time + tile.duration + 2000) > this.gameTime
         );
         
-        // Check for game end
-        if (this.currentSong && this.gameTime > this.currentSong.duration * 1000 + 3000) {
-            this.endGame();
+        // Check for song completion
+        if (this.currentSong && this.gameTime > (this.currentSong.duration * 1000 / this.speedMultiplier) + 3000) {
+            this.completeSong();
         }
     }
     
-    endGame() {
+    gameOver(reason) {
         this.gameState = 'gameOver';
+        this.gameOverReason = reason;
         this.showScreen('gameOverScreen');
         this.stopAudio();
         
-        // Calculate final stats
-        const finalAccuracy = this.totalNotes > 0 ? Math.round((this.hitNotes / this.totalNotes) * 100) : 0;
-        const grade = this.calculateGrade(finalAccuracy);
-        
+        // Update game over screen
+        document.querySelector('#gameOverScreen h2').textContent = `GAME OVER! ${reason}`;
         document.getElementById('finalScore').textContent = this.score;
         document.getElementById('maxCombo').textContent = this.maxCombo;
-        document.getElementById('finalAccuracy').textContent = finalAccuracy + '%';
+        document.getElementById('finalAccuracy').textContent = '0%';
         
         const gradeElement = document.getElementById('grade');
-        gradeElement.textContent = grade;
-        gradeElement.className = `grade-${grade}`;
+        gradeElement.textContent = 'F';
+        gradeElement.className = 'grade-F';
+    }
+    
+    completeSong() {
+        this.songRepeats++;
+        this.speedMultiplier += 0.3; // Increase speed by 30% each repeat
+        
+        // Show completion message briefly
+        this.showCompletionMessage();
+        
+        // Restart song with higher speed after 2 seconds
+        setTimeout(() => {
+            this.restartSongWithSpeed();
+        }, 2000);
+    }
+    
+    showCompletionMessage() {
+        // Create temporary overlay
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: #FFD700;
+            font-size: 2em;
+            font-weight: bold;
+            text-align: center;
+        `;
+        overlay.innerHTML = `
+            <div>
+                <div>🎉 SONG COMPLETED! 🎉</div>
+                <div style="font-size: 0.7em; margin-top: 20px;">Speed: ${(this.speedMultiplier * 100).toFixed(0)}% → ${((this.speedMultiplier + 0.3) * 100).toFixed(0)}%</div>
+                <div style="font-size: 0.5em; margin-top: 10px;">Get ready for faster tiles!</div>
+            </div>
+        `;
+        
+        document.getElementById('gameScreen').appendChild(overlay);
+        
+        // Remove overlay after 2 seconds
+        setTimeout(() => {
+            overlay.remove();
+        }, 2000);
+    }
+    
+    restartSongWithSpeed() {
+        // Reset game but keep speed multiplier
+        this.tiles = [];
+        this.score = 0;
+        this.combo = 0;
+        this.totalNotes = 0;
+        this.hitNotes = 0;
+        this.startTime = performance.now();
+        this.gameTime = 0;
+        this.isPaused = false;
+        
+        // Reload song with faster timing
+        this.loadSongWithSpeed(this.currentSong);
+        this.startAudio();
+        this.updateUI();
+    }
+    
+    loadSongWithSpeed(song) {
+        this.currentSong = song;
+        
+        // Apply speed multiplier to note timing
+        const speedAdjustedNotes = song.notes.map(note => ({
+            ...note,
+            time: note.time / this.speedMultiplier,
+            duration: note.duration / this.speedMultiplier
+        }));
+        
+        this.totalNotes = speedAdjustedNotes.length;
+        
+        // Create tiles from speed-adjusted notes
+        speedAdjustedNotes.forEach(note => {
+            this.tiles.push(new Tile(note.lane, note.time, note.type, note.duration));
+        });
+        
+        // Generate background music at faster tempo
+        this.generateBackgroundMusic({...song, bpm: song.bpm * this.speedMultiplier});
     }
     
     calculateGrade(accuracy) {

@@ -161,6 +161,14 @@ body {
     margin-bottom: 5px;
 }
 
+.song-genre {
+    font-size: 0.9em;
+    color: #00BFFF;
+    font-weight: bold;
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
 .song-difficulty {
     font-size: 0.9em;
     color: #FFD700;
