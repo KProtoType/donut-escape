@@ -6,7 +6,7 @@ class DonutEscapeGame {
         this.gameState = 'menu'; // menu, playing, paused, gameOver
         this.score = 0;
         this.distance = 0;
-        this.gameSpeed = 2;
+        this.gameSpeed = 4;
         this.selectedCostume = 'default';
         
         // Game dimensions
@@ -148,7 +148,7 @@ class DonutEscapeGame {
     resetGame() {
         this.score = 0;
         this.distance = 0;
-        this.gameSpeed = 2;
+        this.gameSpeed = 4;
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
@@ -277,7 +277,18 @@ class DonutEscapeGame {
         this.obstacles.forEach((obstacle, index) => {
             if (this.player.collidesWith(obstacle)) {
                 if (!this.player.isInvulnerable) {
-                    this.gameOver();
+                    // Check if player can avoid obstacle
+                    let canAvoid = false;
+                    
+                    if (obstacle.canJumpOver && this.player.isJumping) {
+                        canAvoid = true;
+                    } else if (obstacle.canRollUnder && this.player.isRolling) {
+                        canAvoid = true;
+                    }
+                    
+                    if (!canAvoid) {
+                        this.gameOver();
+                    }
                 }
                 this.obstacles.splice(index, 1);
             }
@@ -342,15 +353,31 @@ class DonutEscapeGame {
     }
     
     drawBackground() {
-        // Sky
+        // Sky and sidewalk
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#87CEEB');
-        gradient.addColorStop(0.3, '#87CEEB');
-        gradient.addColorStop(0.3, '#90EE90');
-        gradient.addColorStop(1, '#228B22');
+        gradient.addColorStop(0.4, '#87CEEB');
+        gradient.addColorStop(0.4, '#D3D3D3');
+        gradient.addColorStop(1, '#A9A9A9');
         
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Sidewalk texture
+        this.ctx.strokeStyle = '#808080';
+        this.ctx.lineWidth = 1;
+        for (let i = 0; i < this.canvas.width; i += 20) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(i, this.canvas.height * 0.4);
+            this.ctx.lineTo(i, this.canvas.height);
+            this.ctx.stroke();
+        }
+        for (let i = this.canvas.height * 0.4; i < this.canvas.height; i += 20) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(0, i);
+            this.ctx.lineTo(this.canvas.width, i);
+            this.ctx.stroke();
+        }
     }
     
     drawLanes() {
@@ -522,23 +549,36 @@ class Player {
     }
     
     drawCostume(ctx) {
-        const costumeSprites = {
-            default: '🍩',
-            cop: '👮‍♂️',
-            rockstar: '🎸',
-            alien: '👾'
-        };
-        
         ctx.font = '40px Arial';
         ctx.textAlign = 'center';
-        ctx.fillText(costumeSprites[this.costume] || '🍩', this.x, this.y + 30);
+        
+        // Always draw the donut base
+        ctx.fillText('🍩', this.x, this.y + 30);
+        
+        // Add costume on top of donut
+        const costumeSprites = {
+            default: '',
+            cop: '👕',
+            rockstar: '🎸',
+            alien: '👽'
+        };
+        
+        if (this.costume !== 'default' && costumeSprites[this.costume]) {
+            ctx.font = '20px Arial';
+            ctx.fillText(costumeSprites[this.costume], this.x, this.y + 10);
+        }
         
         // Add rolling animation
         if (this.isRolling) {
             ctx.save();
             ctx.translate(this.x, this.y + 20);
             ctx.rotate((this.animationFrame * 0.3) % (Math.PI * 2));
-            ctx.fillText(costumeSprites[this.costume] || '🍩', 0, 0);
+            ctx.font = '40px Arial';
+            ctx.fillText('🍩', 0, 0);
+            if (this.costume !== 'default' && costumeSprites[this.costume]) {
+                ctx.font = '20px Arial';
+                ctx.fillText(costumeSprites[this.costume], 0, -20);
+            }
             ctx.restore();
         }
     }
@@ -575,8 +615,10 @@ class Obstacle {
         this.x = x;
         this.y = y;
         this.type = type;
-        this.width = 40;
-        this.height = 40;
+        this.canJumpOver = ['manhole', 'puddle', 'cone'].includes(type);
+        this.canRollUnder = ['feet', 'car'].includes(type);
+        this.width = type === 'car' ? 80 : 60;
+        this.height = type === 'car' ? 60 : 50;
         this.animationFrame = 0;
     }
     
@@ -590,14 +632,24 @@ class Obstacle {
             manhole: '🕳️',
             trashbin: '🗑️',
             puddle: '💧',
-            feet: '👣',
+            feet: this.getWalkingFeet(),
             cone: '🚧',
-            car: '🚕'
+            car: this.getMovingCar()
         };
         
-        ctx.font = '40px Arial';
+        ctx.font = `${this.width}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(obstacleSprites[this.type] || '❌', this.x, this.y + 30);
+        ctx.fillText(obstacleSprites[this.type] || '❌', this.x, this.y + this.height/2);
+    }
+    
+    getWalkingFeet() {
+        const feetAnimation = ['👟', '👠', '👡', '👢'];
+        return feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
+    }
+    
+    getMovingCar() {
+        const carAnimation = ['🚕', '🚖', '🚗', '🚘'];
+        return carAnimation[Math.floor(this.animationFrame / 15) % carAnimation.length];
     }
 }
 
