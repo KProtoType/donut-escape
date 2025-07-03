@@ -326,7 +326,7 @@ body {
     font-size: 4em;
     left: 50px;
     top: 50px;
-    animation: personReach 3s ease-in-out;
+    animation: personReach 3s ease-in-out, personShock 1s ease-in-out 5s both;
 }
 
 #plate {
@@ -417,6 +417,11 @@ body {
 @keyframes narrativeShow {
     0% { opacity: 0; transform: translateY(20px); }
     100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes personShock {
+    0% { transform: translateX(150px) scale(1.2); }
+    100% { transform: translateX(150px) scale(1.2); }
 }
 
 /* Loading Animation */

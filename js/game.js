@@ -88,34 +88,38 @@ class DonutEscapeGame {
     
     startIntroAnimation() {
         const narrative = document.getElementById('introNarrative');
+        const person = document.getElementById('person');
         
-        // Set up narrative text sequence
-        const storyTexts = [
-            "Meet Arnie, a happy donut living his best life...",
-            "But suddenly, someone wants to EAT him! 😱",
-            "Quick! Help Arnie escape through the city!",
-            "Click anywhere to start the adventure!"
+        // Real-time story narration
+        const storySequence = [
+            { time: 0, text: "Meet Arnie, a delicious donut..." },
+            { time: 1000, text: "Someone is getting hungry..." },
+            { time: 2500, text: "They're reaching for Arnie!" },
+            { time: 4000, text: "Oh no! They're about to eat him!" },
+            { time: 5000, text: "WAIT! Arnie jumps to safety!", action: () => person.textContent = '😲' },
+            { time: 6000, text: "The person is shocked! Arnie escapes!" },
+            { time: 7000, text: "Now help Arnie run through the city!" },
+            { time: 8000, text: "Click anywhere to start the adventure!" }
         ];
         
-        let textIndex = 0;
-        
-        const showNextText = () => {
-            if (textIndex < storyTexts.length) {
-                narrative.textContent = storyTexts[textIndex];
+        storySequence.forEach(step => {
+            setTimeout(() => {
+                narrative.textContent = step.text;
                 narrative.style.animation = 'none';
                 setTimeout(() => {
                     narrative.style.animation = 'narrativeShow 1s ease-in both';
                 }, 100);
-                textIndex++;
-                setTimeout(showNextText, 2000);
-            } else {
-                // Enable click to start
-                document.addEventListener('click', this.startGameFromIntro.bind(this), { once: true });
-            }
-        };
+                
+                if (step.action) {
+                    step.action();
+                }
+            }, step.time);
+        });
         
-        // Start narrative after intro animation
-        setTimeout(showNextText, 5000);
+        // Enable click to start after story
+        setTimeout(() => {
+            document.addEventListener('click', this.startGameFromIntro.bind(this), { once: true });
+        }, 8500);
     }
     
     startGameFromIntro() {
@@ -368,8 +372,10 @@ class DonutEscapeGame {
     update() {
         if (this.gameState !== 'playing') return;
         
-        // Keep third-person view to see everything from the front
-        // (Removed automatic first-person switching)
+        // Switch to first-person (front) view after 3 seconds
+        if (!this.firstPersonMode && Date.now() - this.gameStartTime > 3000) {
+            this.firstPersonMode = true;
+        }
         
         // Handle pause timer
         if (this.isPaused) {
@@ -396,25 +402,25 @@ class DonutEscapeGame {
         
         // Spawn objects
         this.obstacleTimer++;
-        if (this.obstacleTimer > 90 - (this.gameSpeed * 5)) {
+        if (this.obstacleTimer > 150 - (this.gameSpeed * 5)) { // Increased spacing
             this.spawnStaticObstacle();
             this.obstacleTimer = 0;
         }
         
         this.movingObstacleTimer++;
-        if (this.movingObstacleTimer > 300) { // Less frequent, right in front
+        if (this.movingObstacleTimer > 450) { // Less frequent, increased spacing
             this.spawnMovingObstacle();
             this.movingObstacleTimer = 0;
         }
         
         this.collectibleTimer++;
-        if (this.collectibleTimer > 120) {
+        if (this.collectibleTimer > 200) { // Increased spacing
             this.spawnCollectible();
             this.collectibleTimer = 0;
         }
         
         this.letterTimer++;
-        if (this.letterTimer > 300) {
+        if (this.letterTimer > 450) { // Increased spacing
             this.spawnLetter();
             this.letterTimer = 0;
         }
@@ -849,24 +855,28 @@ class ArnieDonut {
     drawArnie(ctx, proj) {
         const size = 60 * proj.scale;
         
-        // Draw legs (straight rectangles, peach color)
-        ctx.fillStyle = '#FFCBA4';
-        ctx.fillRect(proj.x - size * 0.2, proj.y + size * 0.4, size * 0.1, size * 0.4);
-        ctx.fillRect(proj.x + size * 0.1, proj.y + size * 0.4, size * 0.1, size * 0.4);
+        // Draw simple stick legs (black lines with circles at bottom)
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 3 * proj.scale;
         
-        // Draw arms (angled downward at 140 degrees, peach color)
-        ctx.fillStyle = '#FFCBA4';
-        ctx.save();
-        ctx.translate(proj.x - size * 0.4, proj.y);
-        ctx.rotate(-0.7);
-        ctx.fillRect(-size * 0.15, -size * 0.05, size * 0.3, size * 0.1);
-        ctx.restore();
+        // Left leg
+        ctx.beginPath();
+        ctx.moveTo(proj.x - size * 0.15, proj.y + size * 0.3);
+        ctx.lineTo(proj.x - size * 0.15, proj.y + size * 0.7);
+        ctx.stroke();
         
-        ctx.save();
-        ctx.translate(proj.x + size * 0.4, proj.y);
-        ctx.rotate(0.7);
-        ctx.fillRect(-size * 0.15, -size * 0.05, size * 0.3, size * 0.1);
-        ctx.restore();
+        // Right leg  
+        ctx.beginPath();
+        ctx.moveTo(proj.x + size * 0.15, proj.y + size * 0.3);
+        ctx.lineTo(proj.x + size * 0.15, proj.y + size * 0.7);
+        ctx.stroke();
+        
+        // Feet (circles at end of legs)
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(proj.x - size * 0.15, proj.y + size * 0.7, size * 0.05, 0, Math.PI * 2);
+        ctx.arc(proj.x + size * 0.15, proj.y + size * 0.7, size * 0.05, 0, Math.PI * 2);
+        ctx.fill();
         
         // Draw donut body
         ctx.font = `${size}px Arial`;
@@ -941,7 +951,10 @@ class Obstacle3D {
                 this.draw3DCone(ctx, proj.x, proj.y, size);
                 break;
             case 'manhole':
-                this.draw3DManhole(ctx, proj.x, proj.y, size);
+                // Keep original emoji for manhole
+                ctx.font = `${80 * proj.scale}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('🕳️', proj.x, proj.y);
                 break;
             case 'puddle':
                 this.draw3DPuddle(ctx, proj.x, proj.y, size);
@@ -1320,9 +1333,11 @@ class Sprinkle3D {
         ctx.save();
         ctx.globalAlpha = this.life / this.maxLife;
         ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(proj.x, proj.y, 3 * proj.scale, 0, Math.PI * 2);
-        ctx.fill();
+        
+        // Draw tiny rectangle sprinkles instead of circles
+        const size = 2 * proj.scale;
+        ctx.fillRect(proj.x - size/2, proj.y - size/2, size * 2, size);
+        
         ctx.restore();
     }
 }
