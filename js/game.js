@@ -1,4 +1,4 @@
-// Donut Escape Game Engine
+// Donut Escape 3D Game Engine - Subway Surfers Style
 class DonutEscapeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -9,33 +9,37 @@ class DonutEscapeGame {
         this.gameSpeed = 4;
         this.selectedCostume = 'default';
         
-        // Game dimensions
+        // 3D perspective settings
         this.canvas.width = 800;
         this.canvas.height = 600;
-        this.laneWidth = this.canvas.width / 3;
-        this.lanes = [
-            this.laneWidth * 0.5,
-            this.laneWidth * 1.5,
-            this.laneWidth * 2.5
-        ];
+        this.vanishingPointX = this.canvas.width / 2;
+        this.vanishingPointY = this.canvas.height * 0.3;
+        this.cameraZ = 100;
+        
+        // Lane system for 3D
+        this.laneCount = 3;
+        this.laneWidth = 100;
+        this.lanes = [-1, 0, 1]; // left, center, right
         
         // Initialize game objects
-        this.player = new Player(this.lanes[1], this.canvas.height - 150);
+        this.player = new Player3D(0, 0, 0); // center lane, ground level, at camera
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
         this.particles = [];
-        this.backgroundObjects = [];
+        this.movingObstacles = [];
         
         // Game timers
         this.obstacleTimer = 0;
         this.collectibleTimer = 0;
         this.powerUpTimer = 0;
+        this.movingObstacleTimer = 0;
         this.difficultyTimer = 0;
+        this.pauseTimer = 0;
+        this.isPaused = false;
         
         // Initialize everything
         this.initializeEventListeners();
-        this.initializeBackground();
         this.gameLoop();
     }
     
@@ -73,6 +77,12 @@ class DonutEscapeGame {
                 break;
             case 'Space':
                 e.preventDefault();
+                if (!this.isPaused) {
+                    this.isPaused = true;
+                    this.pauseTimer = 120; // 2 seconds at 60fps
+                }
+                break;
+            case 'ArrowUp':
                 this.player.jump();
                 break;
             case 'ArrowDown':
@@ -153,11 +163,15 @@ class DonutEscapeGame {
         this.collectibles = [];
         this.powerUps = [];
         this.particles = [];
-        this.player.reset(this.lanes[1], this.canvas.height - 150);
+        this.movingObstacles = [];
+        this.player.reset();
         this.obstacleTimer = 0;
         this.collectibleTimer = 0;
         this.powerUpTimer = 0;
+        this.movingObstacleTimer = 0;
         this.difficultyTimer = 0;
+        this.pauseTimer = 0;
+        this.isPaused = false;
     }
     
     gameOver() {
@@ -167,45 +181,61 @@ class DonutEscapeGame {
         this.showScreen('gameOverScreen');
     }
     
-    initializeBackground() {
-        // Create parallax background objects
-        for (let i = 0; i < 20; i++) {
-            this.backgroundObjects.push({
-                x: Math.random() * this.canvas.width,
-                y: Math.random() * this.canvas.height,
-                speed: Math.random() * 2 + 1,
-                size: Math.random() * 30 + 10,
-                type: Math.random() > 0.5 ? 'building' : 'cloud'
-            });
-        }
+    // Convert 3D coordinates to 2D screen coordinates
+    project3D(x, y, z) {
+        const scale = this.cameraZ / (this.cameraZ + z);
+        const screenX = this.vanishingPointX + (x * scale);
+        const screenY = this.vanishingPointY + (y * scale);
+        return { x: screenX, y: screenY, scale: scale };
     }
     
-    spawnObstacle() {
-        const lane = Math.floor(Math.random() * 3);
-        const obstacleTypes = ['manhole', 'trashbin', 'puddle', 'feet', 'cone', 'car'];
+    spawnStaticObstacle() {
+        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
+        const obstacleTypes = ['manhole', 'trashbin', 'puddle', 'cone'];
         const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
+        const z = 800; // Spawn far away
         
-        this.obstacles.push(new Obstacle(this.lanes[lane], -50, type));
+        this.obstacles.push(new Obstacle3D(lane * this.laneWidth, 0, z, type));
+    }
+    
+    spawnMovingObstacle() {
+        const type = Math.random() > 0.5 ? 'car' : 'feet';
+        const z = 600;
+        const startX = type === 'car' ? -400 : -200;
+        const endX = type === 'car' ? 400 : 200;
+        
+        this.movingObstacles.push(new MovingObstacle3D(startX, 0, z, type, endX));
     }
     
     spawnCollectible() {
-        const lane = Math.floor(Math.random() * 3);
+        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         const collectibleTypes = ['coin', 'strawberry', 'chocolate'];
         const type = collectibleTypes[Math.floor(Math.random() * collectibleTypes.length)];
+        const z = 700;
         
-        this.collectibles.push(new Collectible(this.lanes[lane], -50, type));
+        this.collectibles.push(new Collectible3D(lane * this.laneWidth, -20, z, type));
     }
     
     spawnPowerUp() {
-        const lane = Math.floor(Math.random() * 3);
+        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         const powerUpTypes = ['skateboard', 'glaze'];
         const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+        const z = 650;
         
-        this.powerUps.push(new PowerUp(this.lanes[lane], -50, type));
+        this.powerUps.push(new PowerUp3D(lane * this.laneWidth, -15, z, type));
     }
     
     update() {
         if (this.gameState !== 'playing') return;
+        
+        // Handle pause timer
+        if (this.isPaused) {
+            this.pauseTimer--;
+            if (this.pauseTimer <= 0) {
+                this.isPaused = false;
+            }
+            return; // Don't update anything else while paused
+        }
         
         // Update distance and score
         this.distance += this.gameSpeed * 0.1;
@@ -217,69 +247,67 @@ class DonutEscapeGame {
         
         // Increase difficulty over time
         this.difficultyTimer++;
-        if (this.difficultyTimer % 600 === 0) { // Every 10 seconds
+        if (this.difficultyTimer % 600 === 0) {
             this.gameSpeed += 0.5;
         }
         
         // Spawn objects
         this.obstacleTimer++;
-        if (this.obstacleTimer > 120 - (this.gameSpeed * 10)) {
-            this.spawnObstacle();
+        if (this.obstacleTimer > 90 - (this.gameSpeed * 5)) {
+            this.spawnStaticObstacle();
             this.obstacleTimer = 0;
         }
         
-        this.collectibleTimer++;
-        if (this.collectibleTimer > 180) {
-            this.spawnCollectible();
-            this.collectibleTimer = 0;
+        this.movingObstacleTimer++;
+        if (this.movingObstacleTimer > 200) {
+            this.spawnMovingObstacle();
+            this.movingObstacleTimer = 0;
         }
         
-        this.powerUpTimer++;
-        if (this.powerUpTimer > 600) {
-            this.spawnPowerUp();
-            this.powerUpTimer = 0;
+        this.collectibleTimer++;
+        if (this.collectibleTimer > 150) {
+            this.spawnCollectible();
+            this.collectibleTimer = 0;
         }
         
         // Update player
         this.player.update();
         
-        // Update obstacles
+        // Update obstacles - move them toward camera
         this.obstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
-        this.obstacles = this.obstacles.filter(obstacle => obstacle.y < this.canvas.height + 50);
+        this.obstacles = this.obstacles.filter(obstacle => obstacle.z > -100);
+        
+        // Update moving obstacles
+        this.movingObstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
+        this.movingObstacles = this.movingObstacles.filter(obstacle => obstacle.z > -100 && !obstacle.isOffScreen);
         
         // Update collectibles
         this.collectibles.forEach(collectible => collectible.update(this.gameSpeed));
-        this.collectibles = this.collectibles.filter(collectible => collectible.y < this.canvas.height + 50);
+        this.collectibles = this.collectibles.filter(collectible => collectible.z > -100);
         
         // Update power-ups
         this.powerUps.forEach(powerUp => powerUp.update(this.gameSpeed));
-        this.powerUps = this.powerUps.filter(powerUp => powerUp.y < this.canvas.height + 50);
+        this.powerUps = this.powerUps.filter(powerUp => powerUp.z > -100);
         
         // Update particles
         this.particles.forEach(particle => particle.update());
         this.particles = this.particles.filter(particle => particle.life > 0);
-        
-        // Update background
-        this.backgroundObjects.forEach(obj => {
-            obj.y += obj.speed;
-            if (obj.y > this.canvas.height + 50) {
-                obj.y = -50;
-                obj.x = Math.random() * this.canvas.width;
-            }
-        });
         
         // Check collisions
         this.checkCollisions();
     }
     
     checkCollisions() {
-        // Check obstacle collisions
+        const playerLane = this.player.lane;
+        const playerX = playerLane * this.laneWidth;
+        
+        // Check static obstacle collisions
         this.obstacles.forEach((obstacle, index) => {
-            if (this.player.collidesWith(obstacle)) {
-                if (!this.player.isInvulnerable) {
+            if (obstacle.z < 50 && obstacle.z > -50) { // Near player depth
+                const distance = Math.abs(obstacle.x - playerX);
+                if (distance < 50 && !this.player.isInvulnerable) {
                     // Check if player can avoid obstacle
                     let canAvoid = false;
-                    
                     if (obstacle.canJumpOver && this.player.isJumping) {
                         canAvoid = true;
                     } else if (obstacle.canRollUnder && this.player.isRolling) {
@@ -290,30 +318,45 @@ class DonutEscapeGame {
                         this.gameOver();
                     }
                 }
-                this.obstacles.splice(index, 1);
+            }
+        });
+        
+        // Check moving obstacle collisions (cars cannot be avoided by jumping/rolling)
+        this.movingObstacles.forEach((obstacle, index) => {
+            if (obstacle.z < 50 && obstacle.z > -50) {
+                const distance = Math.abs(obstacle.x - playerX);
+                if (distance < 80 && !this.player.isInvulnerable) {
+                    this.gameOver();
+                }
             }
         });
         
         // Check collectible collisions
         this.collectibles.forEach((collectible, index) => {
-            if (this.player.collidesWith(collectible)) {
-                this.score += collectible.points;
-                this.createParticleEffect(collectible.x, collectible.y, collectible.type);
-                this.collectibles.splice(index, 1);
+            if (collectible.z < 50 && collectible.z > -50) {
+                const distance = Math.abs(collectible.x - playerX);
+                if (distance < 40) {
+                    this.score += collectible.points;
+                    this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
+                    this.collectibles.splice(index, 1);
+                }
             }
         });
         
         // Check power-up collisions
         this.powerUps.forEach((powerUp, index) => {
-            if (this.player.collidesWith(powerUp)) {
-                this.player.activatePowerUp(powerUp.type);
-                this.createParticleEffect(powerUp.x, powerUp.y, 'powerup');
-                this.powerUps.splice(index, 1);
+            if (powerUp.z < 50 && powerUp.z > -50) {
+                const distance = Math.abs(powerUp.x - playerX);
+                if (distance < 40) {
+                    this.player.activatePowerUp(powerUp.type);
+                    this.createParticleEffect(powerUp.x, powerUp.y, powerUp.z, 'powerup');
+                    this.powerUps.splice(index, 1);
+                }
             }
         });
     }
     
-    createParticleEffect(x, y, type) {
+    createParticleEffect(x, y, z, type) {
         const colors = {
             coin: '#FFD700',
             strawberry: '#FF6B6B',
@@ -322,7 +365,7 @@ class DonutEscapeGame {
         };
         
         for (let i = 0; i < 10; i++) {
-            this.particles.push(new Particle(x, y, colors[type] || '#FFFFFF'));
+            this.particles.push(new Particle3D(x, y, z, colors[type] || '#FFFFFF'));
         }
     }
     
@@ -330,30 +373,57 @@ class DonutEscapeGame {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw background
-        this.drawBackground();
+        // Draw 3D background
+        this.drawBackground3D();
         
-        // Draw lane lines
-        this.drawLanes();
+        // Draw 3D lane lines
+        this.drawLanes3D();
         
-        // Draw background objects
-        this.backgroundObjects.forEach(obj => this.drawBackgroundObject(obj));
+        // Collect all 3D objects and sort by depth (z-coordinate)
+        const allObjects = [];
         
-        // Draw game objects
-        this.obstacles.forEach(obstacle => obstacle.draw(this.ctx));
-        this.collectibles.forEach(collectible => collectible.draw(this.ctx));
-        this.powerUps.forEach(powerUp => powerUp.draw(this.ctx));
-        this.particles.forEach(particle => particle.draw(this.ctx));
+        // Add obstacles
+        this.obstacles.forEach(obstacle => {
+            allObjects.push({ obj: obstacle, type: 'obstacle', z: obstacle.z });
+        });
         
-        // Draw player
-        this.player.draw(this.ctx);
+        // Add moving obstacles
+        this.movingObstacles.forEach(obstacle => {
+            allObjects.push({ obj: obstacle, type: 'movingObstacle', z: obstacle.z });
+        });
         
-        // Draw speed indicator
-        this.drawSpeedIndicator();
+        // Add collectibles
+        this.collectibles.forEach(collectible => {
+            allObjects.push({ obj: collectible, type: 'collectible', z: collectible.z });
+        });
+        
+        // Add power-ups
+        this.powerUps.forEach(powerUp => {
+            allObjects.push({ obj: powerUp, type: 'powerUp', z: powerUp.z });
+        });
+        
+        // Add player
+        allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
+        
+        // Sort by z-coordinate (furthest first)
+        allObjects.sort((a, b) => b.z - a.z);
+        
+        // Draw all objects in depth order
+        allObjects.forEach(item => {
+            item.obj.draw(this.ctx, this);
+        });
+        
+        // Draw particles last
+        this.particles.forEach(particle => particle.draw(this.ctx, this));
+        
+        // Draw pause indicator
+        if (this.isPaused) {
+            this.drawPauseIndicator();
+        }
     }
     
-    drawBackground() {
-        // Sky and sidewalk
+    drawBackground3D() {
+        // Sky gradient
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#87CEEB');
         gradient.addColorStop(0.4, '#87CEEB');
@@ -363,73 +433,57 @@ class DonutEscapeGame {
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Sidewalk texture
-        this.ctx.strokeStyle = '#808080';
-        this.ctx.lineWidth = 1;
-        for (let i = 0; i < this.canvas.width; i += 20) {
+        // Draw perspective sidewalk
+        this.drawPerspectiveSidewalk();
+    }
+    
+    drawPerspectiveSidewalk() {
+        // Draw sidewalk perspective lines
+        for (let z = 0; z < 1000; z += 50) {
+            const proj = this.project3D(0, 0, z);
+            const leftProj = this.project3D(-200, 0, z);
+            const rightProj = this.project3D(200, 0, z);
+            
+            this.ctx.strokeStyle = `rgba(128, 128, 128, ${1 - z/1000})`;
+            this.ctx.lineWidth = 1;
             this.ctx.beginPath();
-            this.ctx.moveTo(i, this.canvas.height * 0.4);
-            this.ctx.lineTo(i, this.canvas.height);
-            this.ctx.stroke();
-        }
-        for (let i = this.canvas.height * 0.4; i < this.canvas.height; i += 20) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(0, i);
-            this.ctx.lineTo(this.canvas.width, i);
+            this.ctx.moveTo(leftProj.x, proj.y);
+            this.ctx.lineTo(rightProj.x, proj.y);
             this.ctx.stroke();
         }
     }
     
-    drawLanes() {
-        this.ctx.strokeStyle = '#FFFFFF';
-        this.ctx.lineWidth = 3;
-        this.ctx.setLineDash([10, 20]);
-        
-        for (let i = 1; i < 3; i++) {
+    drawLanes3D() {
+        // Draw perspective lane dividers
+        for (let i = -1; i <= 1; i++) {
+            if (i === 0) continue; // Skip center
+            
+            this.ctx.strokeStyle = '#FFFFFF';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([10, 20]);
+            
             this.ctx.beginPath();
-            this.ctx.moveTo(this.laneWidth * i, 0);
-            this.ctx.lineTo(this.laneWidth * i, this.canvas.height);
+            const nearProj = this.project3D(i * this.laneWidth + this.laneWidth/2, 0, -50);
+            const farProj = this.project3D(i * this.laneWidth + this.laneWidth/2, 0, 800);
+            this.ctx.moveTo(nearProj.x, nearProj.y);
+            this.ctx.lineTo(farProj.x, farProj.y);
             this.ctx.stroke();
         }
         
         this.ctx.setLineDash([]);
     }
     
-    drawBackgroundObject(obj) {
+    drawPauseIndicator() {
         this.ctx.save();
-        this.ctx.globalAlpha = 0.3;
-        this.ctx.fillStyle = obj.type === 'building' ? '#666666' : '#FFFFFF';
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.font = '48px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('PAUSED', this.canvas.width/2, this.canvas.height/2);
         
-        if (obj.type === 'building') {
-            this.ctx.fillRect(obj.x, obj.y, obj.size, obj.size * 2);
-        } else {
-            this.ctx.beginPath();
-            this.ctx.arc(obj.x, obj.y, obj.size, 0, Math.PI * 2);
-            this.ctx.fill();
-        }
-        
+        this.ctx.font = '24px Arial';
+        const remaining = Math.ceil(this.pauseTimer / 60);
+        this.ctx.fillText(`Resuming in ${remaining}s`, this.canvas.width/2, this.canvas.height/2 + 50);
         this.ctx.restore();
-    }
-    
-    drawSpeedIndicator() {
-        const speedBarWidth = 200;
-        const speedBarHeight = 20;
-        const x = this.canvas.width - speedBarWidth - 20;
-        const y = this.canvas.height - speedBarHeight - 20;
-        
-        // Background
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(x, y, speedBarWidth, speedBarHeight);
-        
-        // Speed bar
-        const speedPercent = Math.min(this.gameSpeed / 10, 1);
-        this.ctx.fillStyle = `hsl(${120 - (speedPercent * 120)}, 100%, 50%)`;
-        this.ctx.fillRect(x, y, speedBarWidth * speedPercent, speedBarHeight);
-        
-        // Label
-        this.ctx.fillStyle = '#FFFFFF';
-        this.ctx.font = '12px Arial';
-        this.ctx.fillText('SPEED', x, y - 5);
     }
     
     gameLoop() {
@@ -439,17 +493,17 @@ class DonutEscapeGame {
     }
 }
 
-// Player class
-class Player {
-    constructor(x, y) {
+// 3D Player class
+class Player3D {
+    constructor(x, y, z) {
         this.x = x;
         this.y = y;
-        this.width = 40;
-        this.height = 40;
-        this.targetX = x;
-        this.currentLane = 1;
+        this.z = z;
+        this.lane = 0; // -1, 0, 1 for left, center, right
+        this.targetLane = 0;
         this.isJumping = false;
         this.isRolling = false;
+        this.jumpHeight = 0;
         this.jumpSpeed = 0;
         this.onGround = true;
         this.costume = 'default';
@@ -460,16 +514,16 @@ class Player {
     }
     
     moveLeft() {
-        if (this.currentLane > 0) {
-            this.currentLane--;
-            this.targetX = game.lanes[this.currentLane];
+        if (this.lane > -1) {
+            this.lane--;
+            this.targetLane = this.lane;
         }
     }
     
     moveRight() {
-        if (this.currentLane < 2) {
-            this.currentLane++;
-            this.targetX = game.lanes[this.currentLane];
+        if (this.lane < 1) {
+            this.lane++;
+            this.targetLane = this.lane;
         }
     }
     
@@ -484,18 +538,16 @@ class Player {
     roll() {
         if (this.onGround && !this.isJumping) {
             this.isRolling = true;
-            this.height = 20;
         }
     }
     
     stopRolling() {
         this.isRolling = false;
-        this.height = 40;
     }
     
     activatePowerUp(type) {
         this.activePowerUp = type;
-        this.powerUpTimer = 300; // 5 seconds at 60fps
+        this.powerUpTimer = 300;
         
         if (type === 'glaze') {
             this.isInvulnerable = true;
@@ -503,21 +555,25 @@ class Player {
     }
     
     update() {
-        // Smooth lane movement
-        this.x += (this.targetX - this.x) * 0.2;
+        // Smooth lane transition
+        const targetX = this.targetLane * 100;
+        this.x += (targetX - this.x) * 0.2;
         
         // Jump physics
         if (this.isJumping) {
-            this.y += this.jumpSpeed;
+            this.jumpHeight += this.jumpSpeed;
             this.jumpSpeed += 0.8; // gravity
             
-            if (this.y >= game.canvas.height - 150) {
-                this.y = game.canvas.height - 150;
+            if (this.jumpHeight >= 0) {
+                this.jumpHeight = 0;
                 this.isJumping = false;
                 this.onGround = true;
                 this.jumpSpeed = 0;
             }
         }
+        
+        // Update y position based on jump height and rolling
+        this.y = -this.jumpHeight + (this.isRolling ? 20 : 0);
         
         // Power-up timer
         if (this.powerUpTimer > 0) {
@@ -528,11 +584,12 @@ class Player {
             }
         }
         
-        // Animation
         this.animationFrame++;
     }
     
-    draw(ctx) {
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
         ctx.save();
         
         // Power-up effects
@@ -542,18 +599,18 @@ class Player {
             ctx.shadowColor = '#00FFFF';
         }
         
-        // Draw player based on costume
-        this.drawCostume(ctx);
+        // Draw costume
+        this.drawCostume(ctx, proj);
         
         ctx.restore();
     }
     
-    drawCostume(ctx) {
-        ctx.font = '40px Arial';
+    drawCostume(ctx, proj) {
+        ctx.font = `${40 * proj.scale}px Arial`;
         ctx.textAlign = 'center';
         
         // Always draw the donut base
-        ctx.fillText('🍩', this.x, this.y + 30);
+        ctx.fillText('🍩', proj.x, proj.y);
         
         // Add costume on top of donut
         const costumeSprites = {
@@ -564,113 +621,123 @@ class Player {
         };
         
         if (this.costume !== 'default' && costumeSprites[this.costume]) {
-            ctx.font = '20px Arial';
-            ctx.fillText(costumeSprites[this.costume], this.x, this.y + 10);
-        }
-        
-        // Add rolling animation
-        if (this.isRolling) {
-            ctx.save();
-            ctx.translate(this.x, this.y + 20);
-            ctx.rotate((this.animationFrame * 0.3) % (Math.PI * 2));
-            ctx.font = '40px Arial';
-            ctx.fillText('🍩', 0, 0);
-            if (this.costume !== 'default' && costumeSprites[this.costume]) {
-                ctx.font = '20px Arial';
-                ctx.fillText(costumeSprites[this.costume], 0, -20);
-            }
-            ctx.restore();
+            ctx.font = `${20 * proj.scale}px Arial`;
+            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - 15 * proj.scale);
         }
     }
     
-    collidesWith(other) {
-        return (
-            this.x < other.x + other.width &&
-            this.x + this.width > other.x &&
-            this.y < other.y + other.height &&
-            this.y + this.height > other.y
-        );
-    }
-    
-    reset(x, y) {
-        this.x = x;
-        this.y = y;
-        this.targetX = x;
-        this.currentLane = 1;
+    reset() {
+        this.x = 0;
+        this.y = 0;
+        this.z = 0;
+        this.lane = 0;
+        this.targetLane = 0;
         this.isJumping = false;
         this.isRolling = false;
+        this.jumpHeight = 0;
         this.jumpSpeed = 0;
         this.onGround = true;
         this.isInvulnerable = false;
         this.powerUpTimer = 0;
         this.activePowerUp = null;
         this.animationFrame = 0;
-        this.height = 40;
     }
 }
 
-// Obstacle class
-class Obstacle {
-    constructor(x, y, type) {
+// 3D Obstacle class
+class Obstacle3D {
+    constructor(x, y, z, type) {
         this.x = x;
         this.y = y;
+        this.z = z;
         this.type = type;
         this.canJumpOver = ['manhole', 'puddle', 'cone'].includes(type);
-        this.canRollUnder = ['feet', 'car'].includes(type);
-        this.width = type === 'car' ? 80 : 60;
-        this.height = type === 'car' ? 60 : 50;
+        this.canRollUnder = ['feet'].includes(type);
         this.animationFrame = 0;
     }
     
     update(speed) {
-        this.y += speed;
+        this.z -= speed;
         this.animationFrame++;
     }
     
-    draw(ctx) {
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
         const obstacleSprites = {
             manhole: '🕳️',
             trashbin: '🗑️',
             puddle: '💧',
-            feet: this.getWalkingFeet(),
-            cone: '🚧',
-            car: this.getMovingCar()
+            cone: '🚧'
         };
         
-        ctx.font = `${this.width}px Arial`;
+        ctx.font = `${60 * proj.scale}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(obstacleSprites[this.type] || '❌', this.x, this.y + this.height/2);
-    }
-    
-    getWalkingFeet() {
-        const feetAnimation = ['👟', '👠', '👡', '👢'];
-        return feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
-    }
-    
-    getMovingCar() {
-        const carAnimation = ['🚕', '🚖', '🚗', '🚘'];
-        return carAnimation[Math.floor(this.animationFrame / 15) % carAnimation.length];
+        ctx.fillText(obstacleSprites[this.type] || '❌', proj.x, proj.y);
     }
 }
 
-// Collectible class
-class Collectible {
-    constructor(x, y, type) {
+// 3D Moving Obstacle class
+class MovingObstacle3D {
+    constructor(x, y, z, type, endX) {
         this.x = x;
         this.y = y;
+        this.z = z;
         this.type = type;
-        this.width = 30;
-        this.height = 30;
+        this.startX = x;
+        this.endX = endX;
+        this.speed = type === 'car' ? 3 : 1.5;
+        this.animationFrame = 0;
+        this.isOffScreen = false;
+    }
+    
+    update(gameSpeed) {
+        this.z -= gameSpeed;
+        this.x += this.speed;
+        this.animationFrame++;
+        
+        if (this.x > this.endX) {
+            this.isOffScreen = true;
+        }
+    }
+    
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
+        let sprite;
+        if (this.type === 'car') {
+            const carAnimation = ['🚕', '🚖', '🚗', '🚙'];
+            sprite = carAnimation[Math.floor(this.animationFrame / 15) % carAnimation.length];
+        } else { // feet
+            const feetAnimation = ['👟', '👠', '🥿', '👢'];
+            sprite = feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
+        }
+        
+        ctx.font = `${(this.type === 'car' ? 80 : 40) * proj.scale}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.fillText(sprite, proj.x, proj.y);
+    }
+}
+
+// 3D Collectible class
+class Collectible3D {
+    constructor(x, y, z, type) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.type = type;
         this.points = type === 'coin' ? 100 : 50;
         this.animationFrame = 0;
     }
     
     update(speed) {
-        this.y += speed;
+        this.z -= speed;
         this.animationFrame++;
     }
     
-    draw(ctx) {
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
         const collectibleSprites = {
             coin: '🪙',
             strawberry: '🍓',
@@ -679,37 +746,38 @@ class Collectible {
         
         // Glow effect
         ctx.save();
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 15 * proj.scale;
         ctx.shadowColor = '#FFD700';
         
         // Floating animation
-        const floatOffset = Math.sin(this.animationFrame * 0.1) * 5;
+        const floatOffset = Math.sin(this.animationFrame * 0.1) * 5 * proj.scale;
         
-        ctx.font = '30px Arial';
+        ctx.font = `${30 * proj.scale}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(collectibleSprites[this.type] || '⭐', this.x, this.y + 20 + floatOffset);
+        ctx.fillText(collectibleSprites[this.type] || '⭐', proj.x, proj.y + floatOffset);
         
         ctx.restore();
     }
 }
 
-// PowerUp class
-class PowerUp {
-    constructor(x, y, type) {
+// 3D PowerUp class
+class PowerUp3D {
+    constructor(x, y, z, type) {
         this.x = x;
         this.y = y;
+        this.z = z;
         this.type = type;
-        this.width = 35;
-        this.height = 35;
         this.animationFrame = 0;
     }
     
     update(speed) {
-        this.y += speed;
+        this.z -= speed;
         this.animationFrame++;
     }
     
-    draw(ctx) {
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
         const powerUpSprites = {
             skateboard: '🛹',
             glaze: '✨'
@@ -717,26 +785,28 @@ class PowerUp {
         
         // Power-up glow
         ctx.save();
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 20 * proj.scale;
         ctx.shadowColor = '#FF00FF';
         
         // Pulsing animation
-        const scale = 1 + Math.sin(this.animationFrame * 0.2) * 0.2;
+        const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.2) * proj.scale;
         ctx.font = `${35 * scale}px Arial`;
         ctx.textAlign = 'center';
-        ctx.fillText(powerUpSprites[this.type] || '⚡', this.x, this.y + 25);
+        ctx.fillText(powerUpSprites[this.type] || '⚡', proj.x, proj.y);
         
         ctx.restore();
     }
 }
 
-// Particle class
-class Particle {
-    constructor(x, y, color) {
+// 3D Particle class
+class Particle3D {
+    constructor(x, y, z, color) {
         this.x = x;
         this.y = y;
+        this.z = z;
         this.vx = (Math.random() - 0.5) * 10;
         this.vy = (Math.random() - 0.5) * 10;
+        this.vz = (Math.random() - 0.5) * 5;
         this.color = color;
         this.life = 30;
         this.maxLife = 30;
@@ -745,16 +815,19 @@ class Particle {
     update() {
         this.x += this.vx;
         this.y += this.vy;
+        this.z += this.vz;
         this.vy += 0.3; // gravity
         this.life--;
     }
     
-    draw(ctx) {
+    draw(ctx, game) {
+        const proj = game.project3D(this.x, this.y, this.z);
+        
         ctx.save();
         ctx.globalAlpha = this.life / this.maxLife;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 3, 0, Math.PI * 2);
+        ctx.arc(proj.x, proj.y, 3 * proj.scale, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }

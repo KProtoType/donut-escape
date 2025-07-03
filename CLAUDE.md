@@ -7,21 +7,27 @@
 
 ## Game Requirements & Design Specifications
 
-### Visual Design
-- **Main Screen Background:** Blue (not black)
-- **Game Background:** Sidewalk (not field/grass)
+### 3D Perspective & Visual Design
+- **Camera View:** Behind donut (Subway Surfers style)
+- **3D Perspective:** Pseudo-3D with perspective scaling and vanishing point
+- **Main Screen Background:** Blue gradient (not black)
+- **Game Background:** 3D sidewalk with perspective depth
 - **Costumes:** Donut wearing costume items (e.g., donut wearing police coat, not policeman)
 - **Obstacle Sizing:** Everything bigger than donut, proportionate to real life size
+- **Depth Rendering:** Objects scale based on distance from camera
 
 ### Game Mechanics
-- **Starting Speed:** Faster beginning speed
+- **Movement:** Donut runs forward into screen depth, player moves left/right between lanes
+- **Starting Speed:** Faster beginning speed (4)
 - **Jump/Roll Logic:** 
-  - Jump over short obstacles only
-  - Roll under obstacles with gaps
-  - Both jump and roll should be available actions
+  - Jump over short obstacles (manholes, puddles, cones)
+  - Roll under obstacles with gaps (static obstacles only)
+  - Cars cannot be jumped over or ducked under - must be avoided by changing lanes
 - **Obstacle Behavior:**
-  - Footsteps: Actual animated shoes walking
-  - Taxis: Moving/animated vehicles
+  - Static obstacles: spawn in lanes, move toward camera
+  - Cars: drive horizontally across lanes and disappear
+  - Feet: walk horizontally across screen
+- **Pause Mechanic:** Spacebar pauses game for exactly 2 seconds with countdown
 
 ### Technical Workflow
 1. User provides feedback
@@ -43,10 +49,11 @@
 - **Deploy:** Git push to master branch (auto-deploys to Vercel)
 
 ## Game Controls
-- Arrow Keys: Move left/right between lanes
-- Spacebar: Jump over obstacles
-- Down Arrow: Roll under obstacles
-- ESC: Pause game
+- Left/Right Arrow Keys: Move left/right between lanes
+- Up Arrow: Jump over short obstacles
+- Down Arrow: Roll under obstacles with gaps
+- Spacebar: Pause game for exactly 2 seconds
+- ESC: Pause game menu
 
 ## Priority Order for Implementation
 1. Visual fixes (backgrounds, costumes, sizing)
