@@ -1,4 +1,4 @@
-// Donut Escape - True 3D First-Person Runner
+// Donut Escape - Arnie's Story-Driven Adventure
 class DonutEscapeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
@@ -17,21 +17,21 @@ class DonutEscapeGame {
         this.collectedLetters = JSON.parse(localStorage.getItem('donut_letters') || '[]');
         this.unlockedCostumes = JSON.parse(localStorage.getItem('donut_costumes') || '["default"]');
         
-        // True 3D settings (no perspective distortion)
+        // True 3D settings
         this.canvas.width = 800;
         this.canvas.height = 600;
         this.viewDistance = 1000;
         this.groundLevel = this.canvas.height - 100;
-        this.cameraHeight = 50; // Height of donut's eyes
+        this.cameraHeight = 50;
         this.firstPersonMode = false;
         this.gameStartTime = 0;
         
-        // Lane system (3 lanes, each 150 pixels wide)
+        // Lane system (3 lanes, sidewalk turned sideways)
         this.laneWidth = 150;
-        this.lanes = [-this.laneWidth, 0, this.laneWidth]; // left, center, right
+        this.lanes = [-this.laneWidth, 0, this.laneWidth];
         
         // Initialize game objects
-        this.player = new Player3D(0, this.groundLevel, 0);
+        this.player = new ArnieDonut(0, this.groundLevel, 0);
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
@@ -60,7 +60,7 @@ class DonutEscapeGame {
     
     initializeEventListeners() {
         // Menu buttons
-        document.getElementById('startBtn').addEventListener('click', () => this.startGame());
+        document.getElementById('startBtn').addEventListener('click', () => this.playIntro());
         document.getElementById('costumeBtn').addEventListener('click', () => this.showCostumeMenu());
         document.getElementById('backToMenuBtn').addEventListener('click', () => this.showMainMenu());
         document.getElementById('pauseBtn').addEventListener('click', () => this.pauseGame());
@@ -78,6 +78,48 @@ class DonutEscapeGame {
         // Keyboard controls
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
         document.addEventListener('keyup', (e) => this.handleKeyUp(e));
+    }
+    
+    playIntro() {
+        this.gameState = 'intro';
+        this.showScreen('introVideo');
+        this.startIntroAnimation();
+    }
+    
+    startIntroAnimation() {
+        const narrative = document.getElementById('introNarrative');
+        
+        // Set up narrative text sequence
+        const storyTexts = [
+            "Meet Arnie, a happy donut living his best life...",
+            "But suddenly, someone wants to EAT him! 😱",
+            "Quick! Help Arnie escape through the city!",
+            "Click anywhere to start the adventure!"
+        ];
+        
+        let textIndex = 0;
+        
+        const showNextText = () => {
+            if (textIndex < storyTexts.length) {
+                narrative.textContent = storyTexts[textIndex];
+                narrative.style.animation = 'none';
+                setTimeout(() => {
+                    narrative.style.animation = 'narrativeShow 1s ease-in both';
+                }, 100);
+                textIndex++;
+                setTimeout(showNextText, 2000);
+            } else {
+                // Enable click to start
+                document.addEventListener('click', this.startGameFromIntro.bind(this), { once: true });
+            }
+        };
+        
+        // Start narrative after intro animation
+        setTimeout(showNextText, 5000);
+    }
+    
+    startGameFromIntro() {
+        this.startGame();
     }
     
     handleCostumeClick(card) {
@@ -143,7 +185,7 @@ class DonutEscapeGame {
                 e.preventDefault();
                 if (!this.isPaused) {
                     this.isPaused = true;
-                    this.pauseTimer = 120;
+                    this.pauseTimer = 120; // 2 seconds at 60fps
                 }
                 break;
             case 'ArrowUp':
@@ -200,7 +242,7 @@ class DonutEscapeGame {
         this.showScreen('gameScreen');
         this.resetGame();
         this.gameStartTime = Date.now();
-        this.firstPersonMode = false; // Start showing the donut
+        this.firstPersonMode = false; // Start showing Arnie
     }
     
     pauseGame() {
@@ -256,11 +298,10 @@ class DonutEscapeGame {
         this.showScreen('gameOverScreen');
     }
     
-    // True 3D projection without perspective distortion
+    // 3D projection for sideways sidewalk perspective
     project3D(x, y, z) {
-        // Simple orthographic projection
         const screenX = this.canvas.width / 2 + x;
-        const screenY = y - (z * 0.3); // Slight depth effect for visibility
+        const screenY = y - (z * 0.3);
         return { x: screenX, y: screenY, scale: Math.max(0.1, 1 - (z / this.viewDistance)) };
     }
     
@@ -274,12 +315,12 @@ class DonutEscapeGame {
     }
     
     spawnMovingObstacle() {
+        // Only spawn right in front of donut
         const type = Math.random() > 0.5 ? 'car' : 'feet';
-        const z = this.viewDistance * 0.8;
-        const startX = type === 'car' ? -400 : -200;
-        const endX = type === 'car' ? 400 : 200;
+        const z = 200; // Much closer to donut
+        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         
-        this.movingObstacles.push(new MovingObstacle3D(startX, this.groundLevel, z, type, endX));
+        this.movingObstacles.push(new MovingObstacle3D(lane, this.groundLevel, z, type));
     }
     
     spawnCollectible() {
@@ -315,7 +356,7 @@ class DonutEscapeGame {
     
     addSprinkle() {
         if (!this.firstPersonMode) {
-            // Add sprinkles behind the visible donut
+            // Add sprinkles behind Arnie
             this.sprinkles.push(new Sprinkle3D(
                 this.player.x + (Math.random() - 0.5) * 30,
                 this.player.y + Math.random() * 10,
@@ -363,7 +404,7 @@ class DonutEscapeGame {
         }
         
         this.movingObstacleTimer++;
-        if (this.movingObstacleTimer > 200) {
+        if (this.movingObstacleTimer > 300) { // Less frequent, right in front
             this.spawnMovingObstacle();
             this.movingObstacleTimer = 0;
         }
@@ -392,12 +433,12 @@ class DonutEscapeGame {
         // Update player
         this.player.update();
         
-        // Update all objects - move them toward player
+        // Update all objects
         this.obstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
         this.obstacles = this.obstacles.filter(obstacle => obstacle.z > -100);
         
         this.movingObstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
-        this.movingObstacles = this.movingObstacles.filter(obstacle => obstacle.z > -100 && !obstacle.isOffScreen);
+        this.movingObstacles = this.movingObstacles.filter(obstacle => obstacle.z > -100 && obstacle.isAlive);
         
         this.collectibles.forEach(collectible => collectible.update(this.gameSpeed));
         this.collectibles = this.collectibles.filter(collectible => collectible.z > -100);
@@ -564,8 +605,8 @@ class DonutEscapeGame {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw 3D background
-        this.drawBackground3D();
+        // Draw 3D background (sideways sidewalk)
+        this.drawSidewaysSidewalk();
         
         // Collect all 3D objects and sort by depth
         const allObjects = [];
@@ -595,7 +636,7 @@ class DonutEscapeGame {
             allObjects.push({ obj: sprinkle, type: 'sprinkle', z: sprinkle.z });
         });
         
-        // Add player only if not in first-person mode
+        // Add Arnie only if not in first-person mode
         if (!this.firstPersonMode) {
             allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
         }
@@ -622,20 +663,30 @@ class DonutEscapeGame {
         }
     }
     
-    drawBackground3D() {
-        // Simple sky gradient
+    drawSidewaysSidewalk() {
+        // Sky
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#87CEEB');
         gradient.addColorStop(0.6, '#87CEEB');
-        gradient.addColorStop(0.6, '#D3D3D3');
-        gradient.addColorStop(1, '#A9A9A9');
+        gradient.addColorStop(0.6, '#D3D3D3'); // Light gray sidewalk
+        gradient.addColorStop(1, '#696969'); // Darker gray street
         
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw simple ground
-        this.ctx.fillStyle = '#808080';
-        this.ctx.fillRect(0, this.groundLevel, this.canvas.width, this.canvas.height - this.groundLevel);
+        // Draw sidewalk stripes going sideways
+        this.ctx.strokeStyle = '#A9A9A9';
+        this.ctx.lineWidth = 2;
+        for (let x = 0; x < this.canvas.width; x += 40) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, this.groundLevel - 50);
+            this.ctx.lineTo(x, this.canvas.height);
+            this.ctx.stroke();
+        }
+        
+        // Arnie runs on the light gray part
+        this.ctx.fillStyle = 'rgba(211, 211, 211, 0.3)';
+        this.ctx.fillRect(0, this.groundLevel - 50, this.canvas.width, 50);
     }
     
     drawModeIndicator() {
@@ -667,13 +718,13 @@ class DonutEscapeGame {
     }
 }
 
-// 3D Player class positioned at bottom
-class Player3D {
+// Arnie the Donut - with arms, legs, and eyes!
+class ArnieDonut {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.lane = 1; // 0, 1, 2 for left, center, right
+        this.lane = 1;
         this.targetX = x;
         this.isJumping = false;
         this.isRolling = false;
@@ -685,6 +736,7 @@ class Player3D {
         this.powerUpTimer = 0;
         this.activePowerUp = null;
         this.animationFrame = 0;
+        this.runCycle = 0;
     }
     
     moveLeft() {
@@ -758,6 +810,7 @@ class Player3D {
         }
         
         this.animationFrame++;
+        this.runCycle = Math.floor(this.animationFrame / 10) % 4;
     }
     
     draw(ctx, game) {
@@ -772,20 +825,44 @@ class Player3D {
             ctx.shadowColor = '#00FFFF';
         }
         
-        // Draw costume
-        this.drawCostume(ctx, proj);
+        // Draw Arnie with body parts
+        this.drawArnie(ctx, proj);
         
         ctx.restore();
     }
     
-    drawCostume(ctx, proj) {
-        ctx.font = `${60 * proj.scale}px Arial`; // Bigger donut
-        ctx.textAlign = 'center';
+    drawArnie(ctx, proj) {
+        const size = 60 * proj.scale;
         
-        // Always draw the donut base
+        // Draw legs (straight rectangles, peach color)
+        ctx.fillStyle = '#FFCBA4';
+        ctx.fillRect(proj.x - size * 0.2, proj.y + size * 0.4, size * 0.1, size * 0.4);
+        ctx.fillRect(proj.x + size * 0.1, proj.y + size * 0.4, size * 0.1, size * 0.4);
+        
+        // Draw arms (angled downward at 140 degrees, peach color)
+        ctx.fillStyle = '#FFCBA4';
+        ctx.save();
+        ctx.translate(proj.x - size * 0.4, proj.y);
+        ctx.rotate(-0.7);
+        ctx.fillRect(-size * 0.15, -size * 0.05, size * 0.3, size * 0.1);
+        ctx.restore();
+        
+        ctx.save();
+        ctx.translate(proj.x + size * 0.4, proj.y);
+        ctx.rotate(0.7);
+        ctx.fillRect(-size * 0.15, -size * 0.05, size * 0.3, size * 0.1);
+        ctx.restore();
+        
+        // Draw donut body
+        ctx.font = `${size}px Arial`;
+        ctx.textAlign = 'center';
         ctx.fillText('🍩', proj.x, proj.y);
         
-        // Add costume accessories
+        // Draw eyes
+        ctx.font = `${size * 0.3}px Arial`;
+        ctx.fillText('👀', proj.x, proj.y - size * 0.2);
+        
+        // Add costume on top
         const costumeSprites = {
             default: '',
             police: '👕',
@@ -797,8 +874,8 @@ class Player3D {
         };
         
         if (this.costume !== 'default' && costumeSprites[this.costume]) {
-            ctx.font = `${30 * proj.scale}px Arial`;
-            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - 25 * proj.scale);
+            ctx.font = `${size * 0.5}px Arial`;
+            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - size * 0.4);
         }
     }
     
@@ -817,10 +894,11 @@ class Player3D {
         this.powerUpTimer = 0;
         this.activePowerUp = null;
         this.animationFrame = 0;
+        this.runCycle = 0;
     }
 }
 
-// 3D Obstacle class with true 3D rendering
+// Updated Obstacle class with puddles
 class Obstacle3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -843,38 +921,37 @@ class Obstacle3D {
         const obstacleSprites = {
             cone: '🚧',
             manhole: '🕳️',
-            puddle: '💧',
+            puddle: '🌊', // Actual puddle wave
             fork: '🍴',
             spoon: '🥄'
         };
         
-        ctx.font = `${80 * proj.scale}px Arial`; // Bigger obstacles
+        ctx.font = `${80 * proj.scale}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(obstacleSprites[this.type] || '❌', proj.x, proj.y);
     }
 }
 
-// Moving obstacles with true 3D
+// Moving obstacles that appear right in front
 class MovingObstacle3D {
-    constructor(x, y, z, type, endX) {
+    constructor(x, y, z, type) {
         this.x = x;
         this.y = y;
         this.z = z;
         this.type = type;
-        this.startX = x;
-        this.endX = endX;
-        this.speed = type === 'car' ? 4 : 2;
         this.animationFrame = 0;
-        this.isOffScreen = false;
+        this.isAlive = true;
+        this.timer = 0;
     }
     
     update(gameSpeed) {
         this.z -= gameSpeed;
-        this.x += this.speed;
         this.animationFrame++;
+        this.timer++;
         
-        if (this.x > this.endX) {
-            this.isOffScreen = true;
+        // Disappear after some time
+        if (this.timer > 180) { // 3 seconds
+            this.isAlive = false;
         }
     }
     
@@ -896,7 +973,7 @@ class MovingObstacle3D {
     }
 }
 
-// Other classes remain similar but with adjusted sizes and positions...
+// Other classes remain similar...
 class Collectible3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -971,6 +1048,7 @@ class LetterCollectible3D {
     }
 }
 
+// PowerUp with honey cluster as chocolate + strawberry
 class PowerUp3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -990,7 +1068,7 @@ class PowerUp3D {
         
         const powerUpSprites = {
             icing_gun: '🔫',
-            honey_cluster: '🍯',
+            honey_cluster: '🍫🍓', // Chocolate + strawberry stuck together
             glaze: '✨'
         };
         
