@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donut Escape - Endless Runner Game</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="gameContainer">
+        <!-- Main Menu -->
+        <div id="mainMenu" class="screen">
+            <div class="menu-content">
+                <h1 class="game-title">🍩 DONUT ESCAPE</h1>
+                <p class="game-subtitle">Help Arnie escape the hungry city!</p>
+                <button id="startBtn" class="menu-btn">START GAME</button>
+                <button id="costumeBtn" class="menu-btn">COSTUMES</button>
+                <div class="controls-info">
+                    <p>🎮 Controls:</p>
+                    <p>← → Arrow Keys: Switch Lanes</p>
+                    <p>SPACEBAR: Jump</p>
+                    <p>↓ Down Arrow: Roll</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Costume Select Screen -->
+        <div id="costumeMenu" class="screen hidden">
+            <div class="menu-content">
+                <h2>Choose Your Costume</h2>
+                <div class="costume-grid">
+                    <div class="costume-card active" data-costume="default">
+                        <div class="costume-preview">🍩</div>
+                        <p>Original Arnie</p>
+                    </div>
+                    <div class="costume-card" data-costume="cop">
+                        <div class="costume-preview">👮‍♂️🍩</div>
+                        <p>Traffic Cop Donut</p>
+                    </div>
+                    <div class="costume-card" data-costume="rockstar">
+                        <div class="costume-preview">🎸🍩</div>
+                        <p>Rockstar Donut</p>
+                    </div>
+                    <div class="costume-card" data-costume="alien">
+                        <div class="costume-preview">👾🍩</div>
+                        <p>Alien Donut</p>
+                    </div>
+                </div>
+                <button id="backToMenuBtn" class="menu-btn">BACK TO MENU</button>
+            </div>
+        </div>
+
+        <!-- Game Screen -->
+        <div id="gameScreen" class="screen hidden">
+            <div id="gameUI">
+                <div id="scoreDisplay">Score: <span id="score">0</span></div>
+                <div id="distanceDisplay">Distance: <span id="distance">0</span>m</div>
+                <button id="pauseBtn" class="ui-btn">⏸️ PAUSE</button>
+            </div>
+            <canvas id="gameCanvas" width="800" height="600"></canvas>
+        </div>
+
+        <!-- Pause Menu -->
+        <div id="pauseMenu" class="screen hidden">
+            <div class="menu-content">
+                <h2>PAUSED</h2>
+                <button id="resumeBtn" class="menu-btn">RESUME</button>
+                <button id="restartBtn" class="menu-btn">RESTART</button>
+                <button id="mainMenuBtn" class="menu-btn">MAIN MENU</button>
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="screen hidden">
+            <div class="menu-content">
+                <h2>GAME OVER!</h2>
+                <p>Arnie got caught! 😢</p>
+                <div id="finalStats">
+                    <p>Final Score: <span id="finalScore">0</span></p>
+                    <p>Distance: <span id="finalDistance">0</span>m</p>
+                </div>
+                <button id="playAgainBtn" class="menu-btn">PLAY AGAIN</button>
+                <button id="backToMainBtn" class="menu-btn">MAIN MENU</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/game.js"></script>
+</body>
+</html>
