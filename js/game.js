@@ -1439,11 +1439,14 @@ class MagicTilesGame {
     
     loadSong(song) {
         this.currentSong = song;
-        this.totalNotes = song.notes.length + 1; // +1 for START tile
+        this.totalNotes = song.notes.length; // Don't count START tile in scoring
         this.hasStarted = false;
         
-        // Create START tile that appears immediately
-        this.tiles.push(new Tile(1, 2000, 'start', 0)); // Lane 1 (middle-left), 2 seconds
+        // Create START tile that's stationary in the hit zone
+        const startTile = new Tile(1, 0, 'start', 0); // Lane 1 (middle-left)
+        startTile.y = this.hitZone; // Place directly in hit zone
+        startTile.isStationary = true; // Mark as stationary
+        this.tiles.push(startTile);
         
         // Create tiles from song notes (they won't appear until START is pressed)
         song.notes.forEach(note => {
@@ -1551,6 +1554,12 @@ class MagicTilesGame {
                 this.hitTile(bestTile, bestDistance);
                 return true;
             }
+        } else {
+            // Wrong tap - only trigger game over if game has started
+            if (this.hasStarted) {
+                this.combo = 0; // Reset combo on wrong tap
+                this.gameOver('Wrong tap!');
+            }
         }
         
         return false; // No tile to hit
@@ -1625,7 +1634,9 @@ class MagicTilesGame {
         document.getElementById('score').textContent = this.score;
         document.getElementById('combo').textContent = this.combo;
         
-        const accuracy = this.totalNotes > 0 ? Math.round((this.hitNotes / this.totalNotes) * 100) : 100;
+        // Calculate accuracy based on notes processed so far
+        const notesProcessed = this.hitNotes + this.tiles.filter(t => t.missed && t.type !== 'start').length;
+        const accuracy = notesProcessed > 0 ? Math.round((this.hitNotes / notesProcessed) * 100) : 100;
         document.getElementById('accuracy').textContent = accuracy + '%';
     }
     
@@ -1636,22 +1647,30 @@ class MagicTilesGame {
         
         // Update tiles with speed multiplier
         for (const tile of this.tiles) {
-            const speedMult = this.hasStarted ? this.speedMultiplier : 1.0;
-            tile.update(this.gameTime * speedMult, this.fallSpeed);
-            
-            // Check for missed tiles (only after game has started)
-            if (this.hasStarted && !tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance && tile.type !== 'start') {
-                tile.missed = true;
-                this.gameOver('Missed a tile!');
-                return;
+            // Don't update stationary tiles
+            if (!tile.isStationary) {
+                const speedMult = this.hasStarted ? this.speedMultiplier : 1.0;
+                tile.update(this.gameTime * speedMult, this.fallSpeed);
+                
+                // Check for missed tiles (only after game has started)
+                if (this.hasStarted && !tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance && tile.type !== 'start') {
+                    tile.missed = true;
+                    this.combo = 0; // Reset combo on miss
+                    this.gameOver('Missed a tile!');
+                    return;
+                }
             }
         }
         
-        // Remove old tiles
+        // Remove old tiles (but keep stationary ones)
         this.tiles = this.tiles.filter(tile => 
-            tile.y < this.canvas.height + 100 && 
-            (tile.time + tile.duration + 2000) > this.gameTime
+            tile.isStationary || 
+            (tile.y < this.canvas.height + 100 && 
+            (tile.time + tile.duration + 2000) > this.gameTime)
         );
+        
+        // Update UI
+        this.updateUI();
         
         // Check for song completion (only after game has started)
         if (this.hasStarted && this.currentSong && this.gameTime > (this.currentSong.duration * 1000 / this.speedMultiplier) + 8000) {
@@ -1754,10 +1773,13 @@ class MagicTilesGame {
             duration: note.duration / this.speedMultiplier
         }));
         
-        this.totalNotes = speedAdjustedNotes.length + 1; // +1 for START tile
+        this.totalNotes = speedAdjustedNotes.length; // Don't count START tile in scoring
         
-        // Create START tile that appears immediately
-        this.tiles.push(new Tile(1, 2000, 'start', 0)); // Lane 1 (middle-left), 2 seconds
+        // Create START tile that's stationary in the hit zone
+        const startTile = new Tile(1, 0, 'start', 0); // Lane 1 (middle-left)
+        startTile.y = this.hitZone; // Place directly in hit zone
+        startTile.isStationary = true; // Mark as stationary
+        this.tiles.push(startTile);
         
         // Create tiles from speed-adjusted notes
         speedAdjustedNotes.forEach(note => {
@@ -1841,13 +1863,14 @@ class Tile {
     constructor(lane, time, type = 'normal', duration = 0) {
         this.lane = lane;
         this.time = time; // When the tile should be hit (milliseconds)
-        this.type = type; // 'normal' or 'hold'
+        this.type = type; // 'normal', 'hold', or 'start'
         this.duration = duration; // For hold notes (milliseconds)
         this.y = -50; // Start above screen
         this.hit = false;
         this.missed = false;
         this.holding = false; // For hold notes
         this.alpha = 1;
+        this.isStationary = false; // For START tile
     }
     
     update(gameTime, fallSpeed) {
@@ -1865,7 +1888,8 @@ class Tile {
     }
     
     shouldRender(gameTime) {
-        return gameTime >= this.time - 3000 && !this.hit; // Show 3 seconds before hit time
+        // Always render stationary tiles, otherwise use normal timing
+        return this.isStationary || (gameTime >= this.time - 3000 && !this.hit); // Show 3 seconds before hit time
     }
     
     draw(ctx, laneWidth) {
@@ -1875,7 +1899,7 @@ class Tile {
         // Make tiles vertical (taller than wide)
         const x = this.lane * laneWidth + 30; // More padding for vertical tiles
         const width = laneWidth - 60; // Narrower for vertical appearance
-        const height = this.type === 'hold' ? Math.max(80, this.duration / 5) : 80; // Taller tiles
+        const height = this.type === 'hold' ? Math.max(80, (this.duration / 5) * 2.5) : 80; // Hold tiles 2.5x longer
         
         // Draw tile based on type
         if (this.type === 'start') {
