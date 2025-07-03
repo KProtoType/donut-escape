@@ -1,9 +1,9 @@
-// Donut Escape - Subway Surfers Style Game Engine
+// Donut Escape - True 3D First-Person Runner
 class DonutEscapeGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.gameState = 'menu'; // menu, playing, paused, gameOver
+        this.gameState = 'menu';
         this.score = 0;
         this.distance = 0;
         this.gameSpeed = 4;
@@ -17,20 +17,21 @@ class DonutEscapeGame {
         this.collectedLetters = JSON.parse(localStorage.getItem('donut_letters') || '[]');
         this.unlockedCostumes = JSON.parse(localStorage.getItem('donut_costumes') || '["default"]');
         
-        // 3D perspective settings
+        // True 3D settings (no perspective distortion)
         this.canvas.width = 800;
         this.canvas.height = 600;
-        this.vanishingPointX = this.canvas.width / 2;
-        this.vanishingPointY = this.canvas.height * 0.3;
-        this.cameraZ = 100;
+        this.viewDistance = 1000;
+        this.groundLevel = this.canvas.height - 100;
+        this.cameraHeight = 50; // Height of donut's eyes
+        this.firstPersonMode = false;
+        this.gameStartTime = 0;
         
-        // Lane system for 3D
-        this.laneCount = 3;
-        this.laneWidth = 100;
-        this.lanes = [-1, 0, 1]; // left, center, right
+        // Lane system (3 lanes, each 150 pixels wide)
+        this.laneWidth = 150;
+        this.lanes = [-this.laneWidth, 0, this.laneWidth]; // left, center, right
         
         // Initialize game objects
-        this.player = new Player3D(0, 0, 0);
+        this.player = new Player3D(0, this.groundLevel, 0);
         this.obstacles = [];
         this.collectibles = [];
         this.powerUps = [];
@@ -86,7 +87,6 @@ class DonutEscapeGame {
         if (this.unlockedCostumes.includes(costume)) {
             this.selectCostume(costume);
         } else {
-            // Try to unlock costume
             if (this.canAffordCostume(cost)) {
                 this.purchaseCostume(costume, cost);
             }
@@ -143,7 +143,7 @@ class DonutEscapeGame {
                 e.preventDefault();
                 if (!this.isPaused) {
                     this.isPaused = true;
-                    this.pauseTimer = 120; // 2 seconds at 60fps
+                    this.pauseTimer = 120;
                 }
                 break;
             case 'ArrowUp':
@@ -172,7 +172,6 @@ class DonutEscapeGame {
         this.selectedCostume = costume;
         this.player.costume = costume;
         
-        // Update UI
         document.querySelectorAll('.costume-card').forEach(card => {
             card.classList.remove('active');
         });
@@ -200,6 +199,8 @@ class DonutEscapeGame {
         this.gameState = 'playing';
         this.showScreen('gameScreen');
         this.resetGame();
+        this.gameStartTime = Date.now();
+        this.firstPersonMode = false; // Start showing the donut
     }
     
     pauseGame() {
@@ -218,6 +219,8 @@ class DonutEscapeGame {
         this.resetGame();
         this.gameState = 'playing';
         this.showScreen('gameScreen');
+        this.gameStartTime = Date.now();
+        this.firstPersonMode = false;
     }
     
     resetGame() {
@@ -240,11 +243,10 @@ class DonutEscapeGame {
         this.difficultyTimer = 0;
         this.pauseTimer = 0;
         this.isPaused = false;
-        this.collectedLetters = []; // Reset letters for this run
+        this.collectedLetters = [];
     }
     
     gameOver() {
-        // Add collected currency to total
         this.saveCurrency();
         this.updateCurrencyDisplay();
         
@@ -254,39 +256,39 @@ class DonutEscapeGame {
         this.showScreen('gameOverScreen');
     }
     
-    // Convert 3D coordinates to 2D screen coordinates
+    // True 3D projection without perspective distortion
     project3D(x, y, z) {
-        const scale = this.cameraZ / (this.cameraZ + z);
-        const screenX = this.vanishingPointX + (x * scale);
-        const screenY = this.vanishingPointY + (y * scale);
-        return { x: screenX, y: screenY, scale: scale };
+        // Simple orthographic projection
+        const screenX = this.canvas.width / 2 + x;
+        const screenY = y - (z * 0.3); // Slight depth effect for visibility
+        return { x: screenX, y: screenY, scale: Math.max(0.1, 1 - (z / this.viewDistance)) };
     }
     
     spawnStaticObstacle() {
         const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         const obstacleTypes = ['cone', 'manhole', 'puddle', 'fork', 'spoon'];
         const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-        const z = 800; // Spawn far away
+        const z = this.viewDistance;
         
-        this.obstacles.push(new Obstacle3D(lane * this.laneWidth, 0, z, type));
+        this.obstacles.push(new Obstacle3D(lane, this.groundLevel, z, type));
     }
     
     spawnMovingObstacle() {
         const type = Math.random() > 0.5 ? 'car' : 'feet';
-        const z = 600;
+        const z = this.viewDistance * 0.8;
         const startX = type === 'car' ? -400 : -200;
         const endX = type === 'car' ? 400 : 200;
         
-        this.movingObstacles.push(new MovingObstacle3D(startX, 0, z, type, endX));
+        this.movingObstacles.push(new MovingObstacle3D(startX, this.groundLevel, z, type, endX));
     }
     
     spawnCollectible() {
         const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         const collectibleTypes = ['coin', 'strawberry', 'chocolate'];
         const type = collectibleTypes[Math.floor(Math.random() * collectibleTypes.length)];
-        const z = 700;
+        const z = this.viewDistance * 0.9;
         
-        this.collectibles.push(new Collectible3D(lane * this.laneWidth, -20, z, type));
+        this.collectibles.push(new Collectible3D(lane, this.groundLevel - 30, z, type));
     }
     
     spawnLetter() {
@@ -297,8 +299,8 @@ class DonutEscapeGame {
         
         if (availableLetters.length > 0) {
             const letter = availableLetters[Math.floor(Math.random() * availableLetters.length)];
-            const z = 750;
-            this.letterCollectibles.push(new LetterCollectible3D(lane * this.laneWidth, -10, z, letter));
+            const z = this.viewDistance * 0.95;
+            this.letterCollectibles.push(new LetterCollectible3D(lane, this.groundLevel - 20, z, letter));
         }
     }
     
@@ -306,22 +308,29 @@ class DonutEscapeGame {
         const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
         const powerUpTypes = ['icing_gun', 'honey_cluster', 'glaze'];
         const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-        const z = 650;
+        const z = this.viewDistance * 0.85;
         
-        this.powerUps.push(new PowerUp3D(lane * this.laneWidth, -15, z, type));
+        this.powerUps.push(new PowerUp3D(lane, this.groundLevel - 25, z, type));
     }
     
     addSprinkle() {
-        const playerX = this.player.lane * this.laneWidth;
-        this.sprinkles.push(new Sprinkle3D(
-            playerX + (Math.random() - 0.5) * 30, 
-            Math.random() * 10, 
-            this.player.z - 20
-        ));
+        if (!this.firstPersonMode) {
+            // Add sprinkles behind the visible donut
+            this.sprinkles.push(new Sprinkle3D(
+                this.player.x + (Math.random() - 0.5) * 30,
+                this.player.y + Math.random() * 10,
+                this.player.z - 20
+            ));
+        }
     }
     
     update() {
         if (this.gameState !== 'playing') return;
+        
+        // Switch to first-person view after 3 seconds
+        if (!this.firstPersonMode && Date.now() - this.gameStartTime > 3000) {
+            this.firstPersonMode = true;
+        }
         
         // Handle pause timer
         if (this.isPaused) {
@@ -329,7 +338,7 @@ class DonutEscapeGame {
             if (this.pauseTimer <= 0) {
                 this.isPaused = false;
             }
-            return; // Don't update anything else while paused
+            return;
         }
         
         // Update distance and score
@@ -366,17 +375,16 @@ class DonutEscapeGame {
         }
         
         this.letterTimer++;
-        if (this.letterTimer > 300) { // Letters spawn less frequently
+        if (this.letterTimer > 300) {
             this.spawnLetter();
             this.letterTimer = 0;
         }
         
-        // Spawn power-ups less frequently
         if (Math.random() < 0.005) {
             this.spawnPowerUp();
         }
         
-        // Add sprinkles continuously while running
+        // Add sprinkles
         if (Math.random() < 0.3) {
             this.addSprinkle();
         }
@@ -384,47 +392,39 @@ class DonutEscapeGame {
         // Update player
         this.player.update();
         
-        // Update obstacles
+        // Update all objects - move them toward player
         this.obstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
         this.obstacles = this.obstacles.filter(obstacle => obstacle.z > -100);
         
-        // Update moving obstacles
         this.movingObstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
         this.movingObstacles = this.movingObstacles.filter(obstacle => obstacle.z > -100 && !obstacle.isOffScreen);
         
-        // Update collectibles
         this.collectibles.forEach(collectible => collectible.update(this.gameSpeed));
         this.collectibles = this.collectibles.filter(collectible => collectible.z > -100);
         
-        // Update letter collectibles
         this.letterCollectibles.forEach(letter => letter.update(this.gameSpeed));
         this.letterCollectibles = this.letterCollectibles.filter(letter => letter.z > -100);
         
-        // Update power-ups
         this.powerUps.forEach(powerUp => powerUp.update(this.gameSpeed));
         this.powerUps = this.powerUps.filter(powerUp => powerUp.z > -100);
         
-        // Update particles
         this.particles.forEach(particle => particle.update());
         this.particles = this.particles.filter(particle => particle.life > 0);
         
-        // Update sprinkles
         this.sprinkles.forEach(sprinkle => sprinkle.update(this.gameSpeed));
         this.sprinkles = this.sprinkles.filter(sprinkle => sprinkle.z > -100 && sprinkle.life > 0);
         
-        // Check collisions
         this.checkCollisions();
     }
     
     checkCollisions() {
-        const playerLane = this.player.lane;
-        const playerX = playerLane * this.laneWidth;
+        const playerX = this.player.x;
         
         // Check static obstacle collisions
         this.obstacles.forEach((obstacle, index) => {
             if (obstacle.z < 50 && obstacle.z > -50) {
                 const distance = Math.abs(obstacle.x - playerX);
-                if (distance < 50 && !this.player.isInvulnerable) {
+                if (distance < 60 && !this.player.isInvulnerable) {
                     let canAvoid = false;
                     if (obstacle.canJumpOver && this.player.isJumping) {
                         canAvoid = true;
@@ -453,7 +453,7 @@ class DonutEscapeGame {
         this.collectibles.forEach((collectible, index) => {
             if (collectible.z < 50 && collectible.z > -50) {
                 const distance = Math.abs(collectible.x - playerX);
-                if (distance < 40) {
+                if (distance < 50) {
                     this.score += collectible.points;
                     this.addCurrency(collectible.type, 1);
                     this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
@@ -466,7 +466,7 @@ class DonutEscapeGame {
         this.letterCollectibles.forEach((letter, index) => {
             if (letter.z < 50 && letter.z > -50) {
                 const distance = Math.abs(letter.x - playerX);
-                if (distance < 40) {
+                if (distance < 50) {
                     this.collectedLetters.push(letter.letter);
                     this.checkDonutComplete();
                     this.updateLetterProgress();
@@ -480,7 +480,7 @@ class DonutEscapeGame {
         this.powerUps.forEach((powerUp, index) => {
             if (powerUp.z < 50 && powerUp.z > -50) {
                 const distance = Math.abs(powerUp.x - playerX);
-                if (distance < 40) {
+                if (distance < 50) {
                     this.player.activatePowerUp(powerUp.type);
                     if (powerUp.type === 'icing_gun') {
                         this.activateIcingGun();
@@ -493,8 +493,6 @@ class DonutEscapeGame {
     }
     
     activateIcingGun() {
-        // Collect all nearby collectibles
-        const collectDistance = 150;
         this.collectibles.forEach((collectible, index) => {
             if (collectible.z < 200 && collectible.z > -50) {
                 this.addCurrency(collectible.type, 1);
@@ -506,11 +504,10 @@ class DonutEscapeGame {
     
     checkDonutComplete() {
         if (this.collectedLetters.length === 5) {
-            // Award bonus
             this.addCurrency('coin', 100);
             this.addCurrency('strawberry', 100);
             this.addCurrency('chocolate', 100);
-            this.collectedLetters = []; // Reset for next collection
+            this.collectedLetters = [];
         }
     }
     
@@ -570,9 +567,6 @@ class DonutEscapeGame {
         // Draw 3D background
         this.drawBackground3D();
         
-        // Draw 3D lane lines
-        this.drawLanes3D();
-        
         // Collect all 3D objects and sort by depth
         const allObjects = [];
         
@@ -601,8 +595,10 @@ class DonutEscapeGame {
             allObjects.push({ obj: sprinkle, type: 'sprinkle', z: sprinkle.z });
         });
         
-        // Add player
-        allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
+        // Add player only if not in first-person mode
+        if (!this.firstPersonMode) {
+            allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
+        }
         
         // Sort by z-coordinate (furthest first)
         allObjects.sort((a, b) => b.z - a.z);
@@ -615,6 +611,11 @@ class DonutEscapeGame {
         // Draw particles last
         this.particles.forEach(particle => particle.draw(this.ctx, this));
         
+        // Draw mode indicator
+        if (!this.firstPersonMode && this.gameState === 'playing') {
+            this.drawModeIndicator();
+        }
+        
         // Draw pause indicator
         if (this.isPaused) {
             this.drawPauseIndicator();
@@ -622,54 +623,28 @@ class DonutEscapeGame {
     }
     
     drawBackground3D() {
-        // Sky gradient
+        // Simple sky gradient
         const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
         gradient.addColorStop(0, '#87CEEB');
-        gradient.addColorStop(0.4, '#87CEEB');
-        gradient.addColorStop(0.4, '#D3D3D3');
+        gradient.addColorStop(0.6, '#87CEEB');
+        gradient.addColorStop(0.6, '#D3D3D3');
         gradient.addColorStop(1, '#A9A9A9');
         
         this.ctx.fillStyle = gradient;
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw perspective sidewalk
-        this.drawPerspectiveSidewalk();
+        // Draw simple ground
+        this.ctx.fillStyle = '#808080';
+        this.ctx.fillRect(0, this.groundLevel, this.canvas.width, this.canvas.height - this.groundLevel);
     }
     
-    drawPerspectiveSidewalk() {
-        // Draw sidewalk perspective lines
-        for (let z = 0; z < 1000; z += 50) {
-            const proj = this.project3D(0, 0, z);
-            const leftProj = this.project3D(-200, 0, z);
-            const rightProj = this.project3D(200, 0, z);
-            
-            this.ctx.strokeStyle = `rgba(128, 128, 128, ${1 - z/1000})`;
-            this.ctx.lineWidth = 1;
-            this.ctx.beginPath();
-            this.ctx.moveTo(leftProj.x, proj.y);
-            this.ctx.lineTo(rightProj.x, proj.y);
-            this.ctx.stroke();
-        }
-    }
-    
-    drawLanes3D() {
-        // Draw perspective lane dividers
-        for (let i = -1; i <= 1; i++) {
-            if (i === 0) continue;
-            
-            this.ctx.strokeStyle = '#FFFFFF';
-            this.ctx.lineWidth = 3;
-            this.ctx.setLineDash([10, 20]);
-            
-            this.ctx.beginPath();
-            const nearProj = this.project3D(i * this.laneWidth + this.laneWidth/2, 0, -50);
-            const farProj = this.project3D(i * this.laneWidth + this.laneWidth/2, 0, 800);
-            this.ctx.moveTo(nearProj.x, nearProj.y);
-            this.ctx.lineTo(farProj.x, farProj.y);
-            this.ctx.stroke();
-        }
-        
-        this.ctx.setLineDash([]);
+    drawModeIndicator() {
+        this.ctx.save();
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        this.ctx.font = '24px Arial';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('Switching to first-person view...', this.canvas.width/2, 50);
+        this.ctx.restore();
     }
     
     drawPauseIndicator() {
@@ -692,14 +667,14 @@ class DonutEscapeGame {
     }
 }
 
-// 3D Player class with sprinkle trail
+// 3D Player class positioned at bottom
 class Player3D {
     constructor(x, y, z) {
         this.x = x;
         this.y = y;
         this.z = z;
-        this.lane = 0;
-        this.targetLane = 0;
+        this.lane = 1; // 0, 1, 2 for left, center, right
+        this.targetX = x;
         this.isJumping = false;
         this.isRolling = false;
         this.jumpHeight = 0;
@@ -713,16 +688,16 @@ class Player3D {
     }
     
     moveLeft() {
-        if (this.lane > -1) {
+        if (this.lane > 0) {
             this.lane--;
-            this.targetLane = this.lane;
+            this.targetX = game.lanes[this.lane];
         }
     }
     
     moveRight() {
-        if (this.lane < 1) {
+        if (this.lane < 2) {
             this.lane++;
-            this.targetLane = this.lane;
+            this.targetX = game.lanes[this.lane];
         }
     }
     
@@ -755,8 +730,7 @@ class Player3D {
     
     update() {
         // Smooth lane transition
-        const targetX = this.targetLane * 100;
-        this.x += (targetX - this.x) * 0.2;
+        this.x += (this.targetX - this.x) * 0.2;
         
         // Jump physics
         if (this.isJumping) {
@@ -772,7 +746,7 @@ class Player3D {
         }
         
         // Update y position
-        this.y = -this.jumpHeight + (this.isRolling ? 20 : 0);
+        this.y = game.groundLevel - this.jumpHeight + (this.isRolling ? 20 : 0);
         
         // Power-up timer
         if (this.powerUpTimer > 0) {
@@ -805,7 +779,7 @@ class Player3D {
     }
     
     drawCostume(ctx, proj) {
-        ctx.font = `${40 * proj.scale}px Arial`;
+        ctx.font = `${60 * proj.scale}px Arial`; // Bigger donut
         ctx.textAlign = 'center';
         
         // Always draw the donut base
@@ -823,17 +797,17 @@ class Player3D {
         };
         
         if (this.costume !== 'default' && costumeSprites[this.costume]) {
-            ctx.font = `${20 * proj.scale}px Arial`;
-            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - 15 * proj.scale);
+            ctx.font = `${30 * proj.scale}px Arial`;
+            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - 25 * proj.scale);
         }
     }
     
     reset() {
         this.x = 0;
-        this.y = 0;
+        this.y = game.groundLevel;
         this.z = 0;
-        this.lane = 0;
-        this.targetLane = 0;
+        this.lane = 1;
+        this.targetX = 0;
         this.isJumping = false;
         this.isRolling = false;
         this.jumpHeight = 0;
@@ -846,7 +820,7 @@ class Player3D {
     }
 }
 
-// Updated Obstacle class with new obstacle types
+// 3D Obstacle class with true 3D rendering
 class Obstacle3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -874,13 +848,13 @@ class Obstacle3D {
             spoon: '🥄'
         };
         
-        ctx.font = `${60 * proj.scale}px Arial`;
+        ctx.font = `${80 * proj.scale}px Arial`; // Bigger obstacles
         ctx.textAlign = 'center';
         ctx.fillText(obstacleSprites[this.type] || '❌', proj.x, proj.y);
     }
 }
 
-// Moving obstacles remain the same
+// Moving obstacles with true 3D
 class MovingObstacle3D {
     constructor(x, y, z, type, endX) {
         this.x = x;
@@ -889,7 +863,7 @@ class MovingObstacle3D {
         this.type = type;
         this.startX = x;
         this.endX = endX;
-        this.speed = type === 'car' ? 3 : 1.5;
+        this.speed = type === 'car' ? 4 : 2;
         this.animationFrame = 0;
         this.isOffScreen = false;
     }
@@ -916,13 +890,13 @@ class MovingObstacle3D {
             sprite = feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
         }
         
-        ctx.font = `${(this.type === 'car' ? 80 : 40) * proj.scale}px Arial`;
+        ctx.font = `${(this.type === 'car' ? 100 : 60) * proj.scale}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(sprite, proj.x, proj.y);
     }
 }
 
-// Collectible class (same as before)
+// Other classes remain similar but with adjusted sizes and positions...
 class Collectible3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -953,7 +927,7 @@ class Collectible3D {
         
         const floatOffset = Math.sin(this.animationFrame * 0.1) * 5 * proj.scale;
         
-        ctx.font = `${30 * proj.scale}px Arial`;
+        ctx.font = `${40 * proj.scale}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(collectibleSprites[this.type] || '⭐', proj.x, proj.y + floatOffset);
         
@@ -961,7 +935,6 @@ class Collectible3D {
     }
 }
 
-// New Letter Collectible class
 class LetterCollectible3D {
     constructor(x, y, z, letter) {
         this.x = x;
@@ -983,25 +956,21 @@ class LetterCollectible3D {
         ctx.shadowBlur = 20 * proj.scale;
         ctx.shadowColor = '#FF00FF';
         
-        // Pulsing animation
         const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.3) * proj.scale;
         
-        // Draw letter background
         ctx.fillStyle = '#FF00FF';
-        ctx.font = `${50 * scale}px Arial`;
+        ctx.font = `${60 * scale}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText('⬜', proj.x, proj.y);
         
-        // Draw letter
         ctx.fillStyle = '#FFFFFF';
-        ctx.font = `${30 * scale}px Arial`;
+        ctx.font = `${40 * scale}px Arial`;
         ctx.fillText(this.letter, proj.x, proj.y);
         
         ctx.restore();
     }
 }
 
-// Updated PowerUp class with new power-ups
 class PowerUp3D {
     constructor(x, y, z, type) {
         this.x = x;
@@ -1030,7 +999,7 @@ class PowerUp3D {
         ctx.shadowColor = '#00FFFF';
         
         const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.2) * proj.scale;
-        ctx.font = `${35 * scale}px Arial`;
+        ctx.font = `${50 * scale}px Arial`;
         ctx.textAlign = 'center';
         ctx.fillText(powerUpSprites[this.type] || '⚡', proj.x, proj.y);
         
@@ -1038,7 +1007,6 @@ class PowerUp3D {
     }
 }
 
-// New Sprinkle class for trail effect
 class Sprinkle3D {
     constructor(x, y, z) {
         this.x = x;
@@ -1068,13 +1036,12 @@ class Sprinkle3D {
         ctx.globalAlpha = this.life / this.maxLife;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(proj.x, proj.y, 2 * proj.scale, 0, Math.PI * 2);
+        ctx.arc(proj.x, proj.y, 3 * proj.scale, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }
 }
 
-// Particle class (same as before)
 class Particle3D {
     constructor(x, y, z, color) {
         this.x = x;
@@ -1103,7 +1070,7 @@ class Particle3D {
         ctx.globalAlpha = this.life / this.maxLife;
         ctx.fillStyle = this.color;
         ctx.beginPath();
-        ctx.arc(proj.x, proj.y, 3 * proj.scale, 0, Math.PI * 2);
+        ctx.arc(proj.x, proj.y, 4 * proj.scale, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
     }

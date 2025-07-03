@@ -7,14 +7,16 @@
 
 ## Game Requirements & Design Specifications
 
-### 3D Perspective & Visual Design
-- **Camera View:** Behind donut (Subway Surfers style)
-- **3D Perspective:** Pseudo-3D with perspective scaling and vanishing point
+### True 3D First-Person Design
+- **Camera View:** First-person from donut's eyes (shows donut for 3 seconds at start)
+- **3D Rendering:** True 3D objects without perspective distortion
+- **Donut Position:** Bottom of screen initially, then first-person view
+- **Lane Lines:** Completely removed
 - **Main Screen Background:** Blue gradient (not black)
-- **Game Background:** 3D sidewalk with perspective depth
+- **Game Background:** Simple ground plane, no perspective lines
 - **Costumes:** Donut wearing costume items (e.g., donut wearing police coat, not policeman)
 - **Obstacle Sizing:** Everything bigger than donut, proportionate to real life size
-- **Depth Rendering:** Objects scale based on distance from camera
+- **Depth Rendering:** Orthographic projection with scale-based depth
 
 ### Game Mechanics (Subway Surfers Style)
 - **Movement:** Donut runs forward into screen depth, player moves left/right between lanes
