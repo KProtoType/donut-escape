@@ -6,9 +6,10 @@ class MagicTilesGame {
         this.audio = document.getElementById('gameAudio');
         
         // Game state
-        this.gameState = 'menu'; // menu, songSelect, playing, paused, gameOver
+        this.gameState = 'menu'; // menu, songSelect, playing, paused, gameOver, waitingToStart
         this.selectedSong = null;
         this.currentSong = null;
+        this.hasStarted = false;
         
         // Game settings
         this.canvas.width = 800;
@@ -1407,11 +1408,17 @@ class MagicTilesGame {
     startGame() {
         if (!this.selectedSong) return;
         
-        this.gameState = 'playing';
+        this.gameState = 'waitingToStart';
         this.showScreen('gameScreen');
         this.resetGame();
         this.loadSong(this.selectedSong);
         this.startAudio();
+    }
+    
+    startActualGame() {
+        this.gameState = 'playing';
+        this.hasStarted = true;
+        this.startTime = performance.now(); // Reset timing when actual game starts
     }
     
     resetGame() {
@@ -1432,11 +1439,15 @@ class MagicTilesGame {
     
     loadSong(song) {
         this.currentSong = song;
-        this.totalNotes = song.notes.length;
+        this.totalNotes = song.notes.length + 1; // +1 for START tile
+        this.hasStarted = false;
         
-        // Create tiles from song notes
+        // Create START tile that appears immediately
+        this.tiles.push(new Tile(1, 2000, 'start', 0)); // Lane 1 (middle-left), 2 seconds
+        
+        // Create tiles from song notes (they won't appear until START is pressed)
         song.notes.forEach(note => {
-            this.tiles.push(new Tile(note.lane, note.time, note.type, note.duration));
+            this.tiles.push(new Tile(note.lane, note.time + 5000, note.type, note.duration));
         });
         
         // Generate background music (simple beep pattern)
@@ -1531,8 +1542,15 @@ class MagicTilesGame {
         }
         
         if (bestTile) {
-            this.hitTile(bestTile, bestDistance);
-            return true;
+            if (bestTile.type === 'start') {
+                // Start the game when START tile is hit
+                this.startActualGame();
+                bestTile.hit = true;
+                return true;
+            } else {
+                this.hitTile(bestTile, bestDistance);
+                return true;
+            }
         }
         
         return false; // No tile to hit
@@ -1612,16 +1630,17 @@ class MagicTilesGame {
     }
     
     update() {
-        if (this.gameState !== 'playing' || this.isPaused) return;
+        if ((this.gameState !== 'playing' && this.gameState !== 'waitingToStart') || this.isPaused) return;
         
         this.gameTime = performance.now() - this.startTime;
         
         // Update tiles with speed multiplier
         for (const tile of this.tiles) {
-            tile.update(this.gameTime * this.speedMultiplier, this.fallSpeed);
+            const speedMult = this.hasStarted ? this.speedMultiplier : 1.0;
+            tile.update(this.gameTime * speedMult, this.fallSpeed);
             
-            // Check for missed tiles
-            if (!tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance) {
+            // Check for missed tiles (only after game has started)
+            if (this.hasStarted && !tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance && tile.type !== 'start') {
                 tile.missed = true;
                 this.gameOver('Missed a tile!');
                 return;
@@ -1634,8 +1653,8 @@ class MagicTilesGame {
             (tile.time + tile.duration + 2000) > this.gameTime
         );
         
-        // Check for song completion
-        if (this.currentSong && this.gameTime > (this.currentSong.duration * 1000 / this.speedMultiplier) + 3000) {
+        // Check for song completion (only after game has started)
+        if (this.hasStarted && this.currentSong && this.gameTime > (this.currentSong.duration * 1000 / this.speedMultiplier) + 8000) {
             this.completeSong();
         }
     }
@@ -1652,9 +1671,11 @@ class MagicTilesGame {
         document.getElementById('maxCombo').textContent = this.maxCombo;
         document.getElementById('finalAccuracy').textContent = '0%';
         
-        const gradeElement = document.getElementById('grade');
-        gradeElement.textContent = 'F';
-        gradeElement.className = 'grade-F';
+        // Hide the grade display
+        const gradeDisplay = document.getElementById('gradeDisplay');
+        if (gradeDisplay) {
+            gradeDisplay.style.display = 'none';
+        }
     }
     
     completeSong() {
@@ -1724,6 +1745,7 @@ class MagicTilesGame {
     
     loadSongWithSpeed(song) {
         this.currentSong = song;
+        this.hasStarted = false;
         
         // Apply speed multiplier to note timing
         const speedAdjustedNotes = song.notes.map(note => ({
@@ -1732,31 +1754,26 @@ class MagicTilesGame {
             duration: note.duration / this.speedMultiplier
         }));
         
-        this.totalNotes = speedAdjustedNotes.length;
+        this.totalNotes = speedAdjustedNotes.length + 1; // +1 for START tile
+        
+        // Create START tile that appears immediately
+        this.tiles.push(new Tile(1, 2000, 'start', 0)); // Lane 1 (middle-left), 2 seconds
         
         // Create tiles from speed-adjusted notes
         speedAdjustedNotes.forEach(note => {
-            this.tiles.push(new Tile(note.lane, note.time, note.type, note.duration));
+            this.tiles.push(new Tile(note.lane, note.time + 5000, note.type, note.duration));
         });
         
         // Generate background music at faster tempo
         this.generateBackgroundMusic({...song, bpm: song.bpm * this.speedMultiplier});
     }
     
-    calculateGrade(accuracy) {
-        if (accuracy >= 95) return 'S';
-        if (accuracy >= 90) return 'A';
-        if (accuracy >= 80) return 'B';
-        if (accuracy >= 70) return 'C';
-        if (accuracy >= 60) return 'D';
-        return 'F';
-    }
     
     render() {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        if (this.gameState !== 'playing') return;
+        if (this.gameState !== 'playing' && this.gameState !== 'waitingToStart') return;
         
         // Draw lane dividers
         this.drawLanes();
@@ -1855,13 +1872,35 @@ class Tile {
         ctx.save();
         ctx.globalAlpha = this.alpha;
         
-        const x = this.lane * laneWidth + 10;
-        const width = laneWidth - 20;
-        const height = this.type === 'hold' ? Math.max(40, this.duration / 10) : 40;
+        // Make tiles vertical (taller than wide)
+        const x = this.lane * laneWidth + 30; // More padding for vertical tiles
+        const width = laneWidth - 60; // Narrower for vertical appearance
+        const height = this.type === 'hold' ? Math.max(80, this.duration / 5) : 80; // Taller tiles
         
         // Draw tile based on type
-        if (this.type === 'hold') {
-            // Hold note - longer gradient tile
+        if (this.type === 'start') {
+            // START tile - special green gradient
+            const gradient = ctx.createLinearGradient(x, this.y - height, x, this.y);
+            gradient.addColorStop(0, '#00FF00');
+            gradient.addColorStop(0.5, '#32CD32');
+            gradient.addColorStop(1, '#228B22');
+            ctx.fillStyle = gradient;
+            
+            // Draw START tile
+            ctx.fillRect(x, this.y - height, width, height);
+            
+            // Draw border
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, this.y - height, width, height);
+            
+            // Draw START text
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 18px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('START', x + width/2, this.y - height/2 + 6);
+        } else if (this.type === 'hold') {
+            // Hold note - longer gradient tile (no HOLD text)
             const gradient = ctx.createLinearGradient(x, this.y - height, x, this.y);
             gradient.addColorStop(0, '#00BFFF');
             gradient.addColorStop(0.5, '#0080FF');
@@ -1875,12 +1914,6 @@ class Tile {
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 3;
             ctx.strokeRect(x, this.y - height, width, height);
-            
-            // Draw hold indicator
-            ctx.fillStyle = '#FFFFFF';
-            ctx.font = 'bold 16px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('HOLD', x + width/2, this.y - height/2 + 5);
         } else {
             // Normal note - gradient blue tile
             const gradient = ctx.createLinearGradient(x, this.y - height, x, this.y);
