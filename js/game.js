@@ -1,227 +1,249 @@
-// Donut Escape - Arnie's Story-Driven Adventure
-class DonutEscapeGame {
+// Magic Tiles - Rhythm Game
+class MagicTilesGame {
     constructor() {
         this.canvas = document.getElementById('gameCanvas');
         this.ctx = this.canvas.getContext('2d');
-        this.gameState = 'menu';
-        this.score = 0;
-        this.distance = 0;
-        this.gameSpeed = 4;
-        this.selectedCostume = 'default';
+        this.audio = document.getElementById('gameAudio');
         
-        // Currency system
-        this.coins = parseInt(localStorage.getItem('donut_coins') || '0');
-        this.strawberries = parseInt(localStorage.getItem('donut_strawberries') || '0');
-        this.chocolates = parseInt(localStorage.getItem('donut_chocolates') || '0');
-        this.donutLetters = ['D', 'O', 'N', 'U', 'T'];
-        this.collectedLetters = JSON.parse(localStorage.getItem('donut_letters') || '[]');
-        this.unlockedCostumes = JSON.parse(localStorage.getItem('donut_costumes') || '["default"]');
+        // Game state
+        this.gameState = 'menu'; // menu, songSelect, playing, paused, gameOver
+        this.selectedSong = null;
+        this.currentSong = null;
         
-        // True 3D settings
+        // Game settings
         this.canvas.width = 800;
         this.canvas.height = 600;
-        this.viewDistance = 1000;
-        this.groundLevel = this.canvas.height - 100;
-        this.cameraHeight = 50;
-        this.firstPersonMode = false;
-        this.gameStartTime = 0;
+        this.lanes = 4;
+        this.laneWidth = this.canvas.width / this.lanes;
+        this.fallSpeed = 3;
+        this.hitZone = this.canvas.height - 100;
+        this.hitTolerance = 40;
         
-        // Lane system (3 lanes, sidewalk turned sideways)
-        this.laneWidth = 150;
-        this.lanes = [-this.laneWidth, 0, this.laneWidth];
-        
-        // Initialize game objects
-        this.player = new ArnieDonut(0, this.groundLevel, 0);
-        this.obstacles = [];
-        this.collectibles = [];
-        this.powerUps = [];
-        this.particles = [];
-        this.movingObstacles = [];
-        this.sprinkles = [];
-        this.letterCollectibles = [];
-        
-        // Game timers
-        this.obstacleTimer = 0;
-        this.collectibleTimer = 0;
-        this.powerUpTimer = 0;
-        this.movingObstacleTimer = 0;
-        this.letterTimer = 0;
-        this.difficultyTimer = 0;
-        this.pauseTimer = 0;
+        // Game data
+        this.tiles = [];
+        this.score = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.totalNotes = 0;
+        this.hitNotes = 0;
+        this.startTime = 0;
+        this.gameTime = 0;
         this.isPaused = false;
+        
+        // Input handling
+        this.activeTouches = new Set();
+        this.keyPressed = new Set();
+        
+        // Load songs database
+        this.songs = this.initializeSongs();
         
         // Initialize everything
         this.initializeEventListeners();
-        this.updateCurrencyDisplay();
-        this.updateLetterProgress();
-        this.updateCostumeMenu();
+        this.populateSongList();
         this.gameLoop();
+    }
+    
+    initializeSongs() {
+        return [
+            {
+                id: 'sample1',
+                title: 'Rhythmic Beats',
+                artist: 'Magic Tiles Studio',
+                difficulty: 'Easy',
+                bpm: 120,
+                duration: 60, // seconds
+                audioFile: null, // We'll use a generated beat
+                notes: this.generateSampleNotes(120, 60) // BPM, duration
+            },
+            {
+                id: 'sample2',
+                title: 'Electronic Dance',
+                artist: 'Digital Harmony',
+                difficulty: 'Medium',
+                bpm: 140,
+                duration: 45,
+                audioFile: null,
+                notes: this.generateSampleNotes(140, 45, 'medium')
+            },
+            {
+                id: 'sample3',
+                title: 'Speed Challenge',
+                artist: 'Tempo Masters',
+                difficulty: 'Hard',
+                bpm: 180,
+                duration: 30,
+                audioFile: null,
+                notes: this.generateSampleNotes(180, 30, 'hard')
+            }
+        ];
+    }
+    
+    generateSampleNotes(bpm, duration, difficulty = 'easy') {
+        const notes = [];
+        const beatInterval = (60 / bpm) * 1000; // milliseconds per beat
+        const totalBeats = Math.floor((duration * 1000) / beatInterval);
+        
+        let densityMultiplier = 1;
+        if (difficulty === 'medium') densityMultiplier = 1.5;
+        if (difficulty === 'hard') densityMultiplier = 2;
+        
+        for (let beat = 0; beat < totalBeats; beat++) {
+            const time = beat * beatInterval;
+            
+            // Add notes based on beat patterns
+            if (beat % 4 === 0) { // Strong beats
+                notes.push({
+                    time: time,
+                    lane: Math.floor(Math.random() * this.lanes),
+                    type: 'normal',
+                    duration: 0
+                });
+            }
+            
+            if (difficulty !== 'easy' && beat % 2 === 1) { // Off-beats for medium/hard
+                notes.push({
+                    time: time,
+                    lane: Math.floor(Math.random() * this.lanes),
+                    type: 'normal',
+                    duration: 0
+                });
+            }
+            
+            if (difficulty === 'hard' && Math.random() < 0.3) { // Extra notes for hard
+                notes.push({
+                    time: time + beatInterval / 2,
+                    lane: Math.floor(Math.random() * this.lanes),
+                    type: 'normal',
+                    duration: 0
+                });
+            }
+            
+            // Add some hold notes
+            if (Math.random() < 0.1 * densityMultiplier) {
+                notes.push({
+                    time: time,
+                    lane: Math.floor(Math.random() * this.lanes),
+                    type: 'hold',
+                    duration: beatInterval * (1 + Math.floor(Math.random() * 3))
+                });
+            }
+        }
+        
+        return notes.sort((a, b) => a.time - b.time);
     }
     
     initializeEventListeners() {
         // Menu buttons
-        document.getElementById('startBtn').addEventListener('click', () => this.playIntro());
-        document.getElementById('costumeBtn').addEventListener('click', () => this.showCostumeMenu());
-        document.getElementById('backToMenuBtn').addEventListener('click', () => this.showMainMenu());
+        document.getElementById('playBtn').addEventListener('click', () => {
+            if (this.selectedSong) {
+                this.startGame();
+            } else {
+                this.showSongSelect();
+            }
+        });
+        
+        document.getElementById('songsBtn').addEventListener('click', () => this.showSongSelect());
+        document.getElementById('backToMainBtn').addEventListener('click', () => this.showMainMenu());
         document.getElementById('pauseBtn').addEventListener('click', () => this.pauseGame());
         document.getElementById('resumeBtn').addEventListener('click', () => this.resumeGame());
         document.getElementById('restartBtn').addEventListener('click', () => this.restartGame());
         document.getElementById('mainMenuBtn').addEventListener('click', () => this.showMainMenu());
         document.getElementById('playAgainBtn').addEventListener('click', () => this.restartGame());
-        document.getElementById('backToMainBtn').addEventListener('click', () => this.showMainMenu());
+        document.getElementById('backToSongsBtn').addEventListener('click', () => this.showSongSelect());
+        document.getElementById('backToMainMenuBtn').addEventListener('click', () => this.showMainMenu());
         
-        // Costume selection
-        document.querySelectorAll('.costume-card').forEach(card => {
-            card.addEventListener('click', () => this.handleCostumeClick(card));
+        // Touch/Click events for tap zones
+        const tapZones = document.querySelectorAll('.tap-zone');
+        tapZones.forEach((zone, index) => {
+            // Mouse events
+            zone.addEventListener('mousedown', (e) => this.handleTap(index, true));
+            zone.addEventListener('mouseup', (e) => this.handleTap(index, false));
+            
+            // Touch events
+            zone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                this.handleTap(index, true);
+            });
+            zone.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                this.handleTap(index, false);
+            });
         });
         
-        // Keyboard controls
+        // Keyboard events
         document.addEventListener('keydown', (e) => this.handleKeyDown(e));
         document.addEventListener('keyup', (e) => this.handleKeyUp(e));
-    }
-    
-    playIntro() {
-        this.gameState = 'intro';
-        this.showScreen('introVideo');
-        this.startIntroAnimation();
-    }
-    
-    startIntroAnimation() {
-        const narrative = document.getElementById('introNarrative');
-        const person = document.getElementById('person');
         
-        // Real-time story narration
-        const storySequence = [
-            { time: 0, text: "Meet Arnie, a delicious donut..." },
-            { time: 1000, text: "Someone is getting hungry..." },
-            { time: 2500, text: "They're reaching for Arnie!" },
-            { time: 4000, text: "Oh no! They're about to eat him!" },
-            { time: 5000, text: "WAIT! Arnie jumps to safety!", action: () => person.textContent = '😲' },
-            { time: 6000, text: "The person is shocked! Arnie escapes!" },
-            { time: 7000, text: "Now help Arnie run through the city!" },
-            { time: 8000, text: "Click anywhere to start the adventure!" }
-        ];
-        
-        storySequence.forEach(step => {
-            setTimeout(() => {
-                narrative.textContent = step.text;
-                narrative.style.animation = 'none';
-                setTimeout(() => {
-                    narrative.style.animation = 'narrativeShow 1s ease-in both';
-                }, 100);
-                
-                if (step.action) {
-                    step.action();
-                }
-            }, step.time);
-        });
-        
-        // Enable click to start after story
-        setTimeout(() => {
-            document.addEventListener('click', this.startGameFromIntro.bind(this), { once: true });
-        }, 8500);
-    }
-    
-    startGameFromIntro() {
-        this.startGame();
-    }
-    
-    handleCostumeClick(card) {
-        const costume = card.dataset.costume;
-        const cost = parseInt(card.dataset.cost);
-        
-        if (this.unlockedCostumes.includes(costume)) {
-            this.selectCostume(costume);
-        } else {
-            if (this.canAffordCostume(cost)) {
-                this.purchaseCostume(costume, cost);
-            }
-        }
-    }
-    
-    canAffordCostume(cost) {
-        const coinCost = cost;
-        const strawberryCost = Math.floor(cost / 2);
-        const chocolateCost = Math.floor(cost / 2);
-        
-        return this.coins >= coinCost && 
-               this.strawberries >= strawberryCost && 
-               this.chocolates >= chocolateCost;
-    }
-    
-    purchaseCostume(costume, cost) {
-        const coinCost = cost;
-        const strawberryCost = Math.floor(cost / 2);
-        const chocolateCost = Math.floor(cost / 2);
-        
-        this.coins -= coinCost;
-        this.strawberries -= strawberryCost;
-        this.chocolates -= chocolateCost;
-        
-        this.unlockedCostumes.push(costume);
-        this.saveCurrency();
-        this.updateCurrencyDisplay();
-        this.updateCostumeMenu();
-        this.selectCostume(costume);
-    }
-    
-    updateCostumeMenu() {
-        document.querySelectorAll('.costume-card').forEach(card => {
-            const costume = card.dataset.costume;
-            if (this.unlockedCostumes.includes(costume)) {
-                card.classList.remove('locked');
-                card.classList.add('unlocked');
-            }
-        });
+        // Prevent context menu on touch
+        document.addEventListener('contextmenu', e => e.preventDefault());
     }
     
     handleKeyDown(e) {
         if (this.gameState !== 'playing') return;
         
-        switch(e.code) {
-            case 'ArrowLeft':
-                this.player.moveLeft();
-                break;
-            case 'ArrowRight':
-                this.player.moveRight();
-                break;
-            case 'Space':
-                e.preventDefault();
-                if (!this.isPaused) {
-                    this.isPaused = true;
-                    this.pauseTimer = 120; // 2 seconds at 60fps
-                }
-                break;
-            case 'ArrowUp':
-                this.player.jump();
-                break;
-            case 'ArrowDown':
-                this.player.roll();
-                break;
-            case 'Escape':
-                this.pauseGame();
-                break;
+        const keyMap = { 'KeyD': 0, 'KeyF': 1, 'KeyJ': 2, 'KeyK': 3 };
+        if (keyMap[e.code] !== undefined && !this.keyPressed.has(e.code)) {
+            this.keyPressed.add(e.code);
+            this.handleTap(keyMap[e.code], true);
+        }
+        
+        if (e.code === 'Space') {
+            e.preventDefault();
+            this.pauseGame();
         }
     }
     
     handleKeyUp(e) {
         if (this.gameState !== 'playing') return;
         
-        switch(e.code) {
-            case 'ArrowDown':
-                this.player.stopRolling();
-                break;
+        const keyMap = { 'KeyD': 0, 'KeyF': 1, 'KeyJ': 2, 'KeyK': 3 };
+        if (keyMap[e.code] !== undefined) {
+            this.keyPressed.delete(e.code);
+            this.handleTap(keyMap[e.code], false);
         }
     }
     
-    selectCostume(costume) {
-        this.selectedCostume = costume;
-        this.player.costume = costume;
+    handleTap(lane, isPressed) {
+        if (this.gameState !== 'playing' || this.isPaused) return;
         
-        document.querySelectorAll('.costume-card').forEach(card => {
-            card.classList.remove('active');
+        const tapZone = document.querySelectorAll('.tap-zone')[lane];
+        
+        if (isPressed) {
+            tapZone.classList.add('active');
+            this.checkTileHit(lane);
+        } else {
+            tapZone.classList.remove('active');
+            this.checkTileRelease(lane);
+        }
+    }
+    
+    populateSongList() {
+        const songList = document.getElementById('songList');
+        songList.innerHTML = '';
+        
+        this.songs.forEach(song => {
+            const card = document.createElement('div');
+            card.className = 'song-card';
+            card.innerHTML = `
+                <div class=\"song-title\">${song.title}</div>
+                <div class=\"song-artist\">${song.artist}</div>
+                <div class=\"song-difficulty\">Difficulty: ${song.difficulty} | BPM: ${song.bpm}</div>
+            `;
+            
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.song-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                this.selectedSong = song;
+            });
+            
+            songList.appendChild(card);
         });
-        document.querySelector(`[data-costume="${costume}"]`).classList.add('active');
+        
+        // Select first song by default
+        if (this.songs.length > 0) {
+            songList.firstChild.classList.add('selected');
+            this.selectedSong = this.songs[0];
+        }
     }
     
     showScreen(screenId) {
@@ -234,1150 +256,429 @@ class DonutEscapeGame {
     showMainMenu() {
         this.gameState = 'menu';
         this.showScreen('mainMenu');
+        this.stopAudio();
     }
     
-    showCostumeMenu() {
-        this.updateCostumeMenu();
-        this.showScreen('costumeMenu');
+    showSongSelect() {
+        this.gameState = 'songSelect';
+        this.showScreen('songMenu');
     }
     
     startGame() {
+        if (!this.selectedSong) return;
+        
         this.gameState = 'playing';
         this.showScreen('gameScreen');
         this.resetGame();
-        this.gameStartTime = Date.now();
-        this.firstPersonMode = false; // Start showing Arnie
-    }
-    
-    pauseGame() {
-        if (this.gameState === 'playing') {
-            this.gameState = 'paused';
-            this.showScreen('pauseMenu');
-        }
-    }
-    
-    resumeGame() {
-        this.gameState = 'playing';
-        this.showScreen('gameScreen');
-    }
-    
-    restartGame() {
-        this.resetGame();
-        this.gameState = 'playing';
-        this.showScreen('gameScreen');
-        this.gameStartTime = Date.now();
-        this.firstPersonMode = false;
+        this.loadSong(this.selectedSong);
+        this.startAudio();
     }
     
     resetGame() {
+        this.tiles = [];
         this.score = 0;
-        this.distance = 0;
-        this.gameSpeed = 4;
-        this.obstacles = [];
-        this.collectibles = [];
-        this.powerUps = [];
-        this.particles = [];
-        this.movingObstacles = [];
-        this.sprinkles = [];
-        this.letterCollectibles = [];
-        this.player.reset();
-        this.obstacleTimer = 0;
-        this.collectibleTimer = 0;
-        this.powerUpTimer = 0;
-        this.movingObstacleTimer = 0;
-        this.letterTimer = 0;
-        this.difficultyTimer = 0;
-        this.pauseTimer = 0;
+        this.combo = 0;
+        this.maxCombo = 0;
+        this.totalNotes = 0;
+        this.hitNotes = 0;
+        this.startTime = performance.now();
+        this.gameTime = 0;
         this.isPaused = false;
-        this.collectedLetters = [];
+        this.updateUI();
     }
     
-    gameOver() {
-        this.saveCurrency();
-        this.updateCurrencyDisplay();
+    loadSong(song) {
+        this.currentSong = song;
+        this.totalNotes = song.notes.length;
         
-        this.gameState = 'gameOver';
-        document.getElementById('finalScore').textContent = this.score;
-        document.getElementById('finalDistance').textContent = Math.floor(this.distance);
-        this.showScreen('gameOverScreen');
-    }
-    
-    // 3D projection for sideways sidewalk perspective
-    project3D(x, y, z) {
-        const screenX = this.canvas.width / 2 + x;
-        const screenY = y - (z * 0.3);
-        return { x: screenX, y: screenY, scale: Math.max(0.1, 1 - (z / this.viewDistance)) };
-    }
-    
-    spawnStaticObstacle() {
-        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const obstacleTypes = ['cone', 'manhole', 'puddle', 'fork', 'spoon'];
-        const type = obstacleTypes[Math.floor(Math.random() * obstacleTypes.length)];
-        const z = this.viewDistance;
+        // Create tiles from song notes
+        song.notes.forEach(note => {
+            this.tiles.push(new Tile(note.lane, note.time, note.type, note.duration));
+        });
         
-        this.obstacles.push(new Obstacle3D(lane, this.groundLevel, z, type));
+        // Generate background music (simple beep pattern)
+        this.generateBackgroundMusic(song);
     }
     
-    spawnMovingObstacle() {
-        // Only spawn right in front of donut
-        const type = Math.random() > 0.5 ? 'car' : 'feet';
-        const z = 200; // Much closer to donut
-        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        
-        this.movingObstacles.push(new MovingObstacle3D(lane, this.groundLevel, z, type));
-    }
-    
-    spawnCollectible() {
-        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const collectibleTypes = ['coin', 'strawberry', 'chocolate'];
-        const type = collectibleTypes[Math.floor(Math.random() * collectibleTypes.length)];
-        const z = this.viewDistance * 0.9;
-        
-        this.collectibles.push(new Collectible3D(lane, this.groundLevel - 30, z, type));
-    }
-    
-    spawnLetter() {
-        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const availableLetters = this.donutLetters.filter(letter => 
-            !this.collectedLetters.includes(letter)
-        );
-        
-        if (availableLetters.length > 0) {
-            const letter = availableLetters[Math.floor(Math.random() * availableLetters.length)];
-            const z = this.viewDistance * 0.95;
-            this.letterCollectibles.push(new LetterCollectible3D(lane, this.groundLevel - 20, z, letter));
+    generateBackgroundMusic(song) {
+        // Create a simple audio context for background beats
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const duration = song.duration;
+            const bpm = song.bpm;
+            const beatInterval = 60 / bpm;
+            
+            // This is a simplified version - in a real game you'd load actual audio files\n            this.playMetronome(audioCtx, beatInterval, duration);
+        } catch (e) {
+            console.log('Audio context not supported, playing without background music');
         }
     }
     
-    spawnPowerUp() {
-        const lane = this.lanes[Math.floor(Math.random() * this.lanes.length)];
-        const powerUpTypes = ['icing_gun', 'honey_cluster', 'glaze'];
-        const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
-        const z = this.viewDistance * 0.85;
+    playMetronome(audioCtx, beatInterval, duration) {
+        let time = 0;
+        const totalBeats = Math.floor(duration / beatInterval);
         
-        this.powerUps.push(new PowerUp3D(lane, this.groundLevel - 25, z, type));
+        for (let i = 0; i < totalBeats; i++) {
+            setTimeout(() => {
+                if (this.gameState === 'playing' && !this.isPaused) {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.frequency.value = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                }
+            }, i * beatInterval * 1000);
+        }
     }
     
-    addSprinkle() {
-        if (!this.firstPersonMode) {
-            // Add sprinkles behind Arnie
-            this.sprinkles.push(new Sprinkle3D(
-                this.player.x + (Math.random() - 0.5) * 30,
-                this.player.y + Math.random() * 10,
-                this.player.z - 20
-            ));
+    startAudio() {
+        // In a real implementation, you would load and play the actual audio file here
+        this.startTime = performance.now();
+    }
+    
+    stopAudio() {
+        if (this.audio && !this.audio.paused) {
+            this.audio.pause();
+            this.audio.currentTime = 0;
         }
+    }
+    
+    pauseGame() {
+        if (this.gameState !== 'playing') return;
+        this.isPaused = true;
+        this.showScreen('pauseMenu');
+        this.stopAudio();
+    }
+    
+    resumeGame() {
+        if (this.gameState !== 'playing') return;
+        this.isPaused = false;
+        this.showScreen('gameScreen');
+        this.startTime = performance.now() - this.gameTime;
+        this.startAudio();
+    }
+    
+    restartGame() {
+        this.startGame();
+    }
+    
+    checkTileHit(lane) {
+        const hitWindow = this.hitTolerance;
+        let bestTile = null;
+        let bestDistance = Infinity;
+        
+        // Find the closest tile in the hit zone for this lane
+        for (const tile of this.tiles) {
+            if (tile.lane === lane && !tile.hit && !tile.missed) {
+                const distance = Math.abs(tile.y - this.hitZone);
+                if (distance <= hitWindow && distance < bestDistance) {
+                    bestTile = tile;
+                    bestDistance = distance;
+                }
+            }
+        }
+        
+        if (bestTile) {
+            this.hitTile(bestTile, bestDistance);
+        }
+    }
+    
+    checkTileRelease(lane) {
+        // Check for hold tile releases
+        for (const tile of this.tiles) {
+            if (tile.lane === lane && tile.type === 'hold' && tile.holding && !tile.missed) {
+                if (performance.now() - this.startTime >= tile.time + tile.duration) {
+                    tile.holding = false;
+                    tile.hit = true;
+                    this.addScore(100, 'Perfect Hold');
+                    this.combo++;
+                }
+            }
+        }
+    }
+    
+    hitTile(tile, distance) {
+        tile.hit = true;
+        this.hitNotes++;
+        
+        // Calculate score based on accuracy
+        let accuracy = 'Perfect';
+        let points = 100;
+        
+        if (distance <= 10) {
+            accuracy = 'Perfect';
+            points = 100;
+        } else if (distance <= 25) {
+            accuracy = 'Great';
+            points = 75;
+        } else {
+            accuracy = 'Good';
+            points = 50;
+        }
+        
+        if (tile.type === 'hold') {
+            tile.holding = true;
+            points *= 2; // Hold notes are worth more
+        }
+        
+        this.addScore(points, accuracy);
+        this.combo++;
+        this.maxCombo = Math.max(this.maxCombo, this.combo);
+        
+        // Visual feedback
+        this.createHitEffect(tile.lane, accuracy);
+    }
+    
+    createHitEffect(lane, accuracy) {
+        // Add visual feedback for hits
+        const effect = {
+            lane: lane,
+            accuracy: accuracy,
+            time: performance.now(),
+            duration: 500
+        };
+        
+        // This would typically create a particle effect or animation
+        console.log(`${accuracy} hit in lane ${lane}!`);
+    }
+    
+    addScore(points, reason) {
+        const comboMultiplier = Math.floor(this.combo / 10) + 1;
+        this.score += points * comboMultiplier;
+        this.updateUI();
+    }
+    
+    updateUI() {
+        document.getElementById('score').textContent = this.score;
+        document.getElementById('combo').textContent = this.combo;
+        
+        const accuracy = this.totalNotes > 0 ? Math.round((this.hitNotes / this.totalNotes) * 100) : 100;
+        document.getElementById('accuracy').textContent = accuracy + '%';
     }
     
     update() {
-        if (this.gameState !== 'playing') return;
+        if (this.gameState !== 'playing' || this.isPaused) return;
         
-        // Switch to first-person (front) view after 3 seconds
-        if (!this.firstPersonMode && Date.now() - this.gameStartTime > 3000) {
-            this.firstPersonMode = true;
-        }
+        this.gameTime = performance.now() - this.startTime;
         
-        // Handle pause timer
-        if (this.isPaused) {
-            this.pauseTimer--;
-            if (this.pauseTimer <= 0) {
-                this.isPaused = false;
+        // Update tiles
+        for (const tile of this.tiles) {
+            tile.update(this.gameTime, this.fallSpeed);
+            
+            // Check for missed tiles
+            if (!tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance) {
+                tile.missed = true;
+                this.combo = 0; // Reset combo on miss
+                console.log(`Missed tile in lane ${tile.lane}`);
             }
-            return;
         }
         
-        // Update distance and score
-        this.distance += this.gameSpeed * 0.1;
-        this.score += Math.floor(this.gameSpeed * 0.1);
+        // Remove old tiles
+        this.tiles = this.tiles.filter(tile => 
+            tile.y < this.canvas.height + 100 && 
+            (tile.time + tile.duration + 2000) > this.gameTime
+        );
         
-        // Update UI
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('distance').textContent = Math.floor(this.distance);
-        
-        // Increase difficulty over time
-        this.difficultyTimer++;
-        if (this.difficultyTimer % 600 === 0) {
-            this.gameSpeed += 0.5;
-        }
-        
-        // Spawn objects
-        this.obstacleTimer++;
-        if (this.obstacleTimer > 150 - (this.gameSpeed * 5)) { // Increased spacing
-            this.spawnStaticObstacle();
-            this.obstacleTimer = 0;
-        }
-        
-        this.movingObstacleTimer++;
-        if (this.movingObstacleTimer > 450) { // Less frequent, increased spacing
-            this.spawnMovingObstacle();
-            this.movingObstacleTimer = 0;
-        }
-        
-        this.collectibleTimer++;
-        if (this.collectibleTimer > 200) { // Increased spacing
-            this.spawnCollectible();
-            this.collectibleTimer = 0;
-        }
-        
-        this.letterTimer++;
-        if (this.letterTimer > 450) { // Increased spacing
-            this.spawnLetter();
-            this.letterTimer = 0;
-        }
-        
-        if (Math.random() < 0.005) {
-            this.spawnPowerUp();
-        }
-        
-        // Add sprinkles
-        if (Math.random() < 0.3) {
-            this.addSprinkle();
-        }
-        
-        // Update player
-        this.player.update();
-        
-        // Update all objects
-        this.obstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
-        this.obstacles = this.obstacles.filter(obstacle => obstacle.z > -100);
-        
-        this.movingObstacles.forEach(obstacle => obstacle.update(this.gameSpeed));
-        this.movingObstacles = this.movingObstacles.filter(obstacle => obstacle.z > -100 && obstacle.isAlive);
-        
-        this.collectibles.forEach(collectible => collectible.update(this.gameSpeed));
-        this.collectibles = this.collectibles.filter(collectible => collectible.z > -100);
-        
-        this.letterCollectibles.forEach(letter => letter.update(this.gameSpeed));
-        this.letterCollectibles = this.letterCollectibles.filter(letter => letter.z > -100);
-        
-        this.powerUps.forEach(powerUp => powerUp.update(this.gameSpeed));
-        this.powerUps = this.powerUps.filter(powerUp => powerUp.z > -100);
-        
-        this.particles.forEach(particle => particle.update());
-        this.particles = this.particles.filter(particle => particle.life > 0);
-        
-        this.sprinkles.forEach(sprinkle => sprinkle.update(this.gameSpeed));
-        this.sprinkles = this.sprinkles.filter(sprinkle => sprinkle.z > -100 && sprinkle.life > 0);
-        
-        this.checkCollisions();
-    }
-    
-    checkCollisions() {
-        const playerX = this.player.x;
-        
-        // Check static obstacle collisions
-        this.obstacles.forEach((obstacle, index) => {
-            if (obstacle.z < 50 && obstacle.z > -50) {
-                const distance = Math.abs(obstacle.x - playerX);
-                if (distance < 60 && !this.player.isInvulnerable) {
-                    let canAvoid = false;
-                    if (obstacle.canJumpOver && this.player.isJumping) {
-                        canAvoid = true;
-                    } else if (obstacle.canRollUnder && this.player.isRolling) {
-                        canAvoid = true;
-                    }
-                    
-                    if (!canAvoid) {
-                        this.gameOver();
-                    }
-                }
-            }
-        });
-        
-        // Check moving obstacle collisions
-        this.movingObstacles.forEach((obstacle, index) => {
-            if (obstacle.z < 50 && obstacle.z > -50) {
-                const distance = Math.abs(obstacle.x - playerX);
-                if (distance < 80 && !this.player.isInvulnerable) {
-                    this.gameOver();
-                }
-            }
-        });
-        
-        // Check collectible collisions
-        this.collectibles.forEach((collectible, index) => {
-            if (collectible.z < 50 && collectible.z > -50) {
-                const distance = Math.abs(collectible.x - playerX);
-                if (distance < 50) {
-                    this.score += collectible.points;
-                    this.addCurrency(collectible.type, 1);
-                    this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
-                    this.collectibles.splice(index, 1);
-                }
-            }
-        });
-        
-        // Check letter collisions
-        this.letterCollectibles.forEach((letter, index) => {
-            if (letter.z < 50 && letter.z > -50) {
-                const distance = Math.abs(letter.x - playerX);
-                if (distance < 50) {
-                    this.collectedLetters.push(letter.letter);
-                    this.checkDonutComplete();
-                    this.updateLetterProgress();
-                    this.createParticleEffect(letter.x, letter.y, letter.z, 'letter');
-                    this.letterCollectibles.splice(index, 1);
-                }
-            }
-        });
-        
-        // Check power-up collisions
-        this.powerUps.forEach((powerUp, index) => {
-            if (powerUp.z < 50 && powerUp.z > -50) {
-                const distance = Math.abs(powerUp.x - playerX);
-                if (distance < 50) {
-                    this.player.activatePowerUp(powerUp.type);
-                    if (powerUp.type === 'icing_gun') {
-                        this.activateIcingGun();
-                    }
-                    this.createParticleEffect(powerUp.x, powerUp.y, powerUp.z, 'powerup');
-                    this.powerUps.splice(index, 1);
-                }
-            }
-        });
-    }
-    
-    activateIcingGun() {
-        this.collectibles.forEach((collectible, index) => {
-            if (collectible.z < 200 && collectible.z > -50) {
-                this.addCurrency(collectible.type, 1);
-                this.createParticleEffect(collectible.x, collectible.y, collectible.z, collectible.type);
-                this.collectibles.splice(index, 1);
-            }
-        });
-    }
-    
-    checkDonutComplete() {
-        if (this.collectedLetters.length === 5) {
-            this.addCurrency('coin', 100);
-            this.addCurrency('strawberry', 100);
-            this.addCurrency('chocolate', 100);
-            this.collectedLetters = [];
+        // Check for game end
+        if (this.currentSong && this.gameTime > this.currentSong.duration * 1000 + 3000) {
+            this.endGame();
         }
     }
     
-    addCurrency(type, amount) {
-        switch(type) {
-            case 'coin':
-                this.coins += amount;
-                break;
-            case 'strawberry':
-                this.strawberries += amount;
-                break;
-            case 'chocolate':
-                this.chocolates += amount;
-                break;
-        }
-        this.updateCurrencyDisplay();
-    }
-    
-    updateCurrencyDisplay() {
-        document.getElementById('coins').textContent = `🪙 ${this.coins}`;
-        document.getElementById('strawberries').textContent = `🍓 ${this.strawberries}`;
-        document.getElementById('chocolates').textContent = `🍫 ${this.chocolates}`;
-    }
-    
-    updateLetterProgress() {
-        const progress = this.donutLetters.map(letter => 
-            this.collectedLetters.includes(letter) ? letter : '-'
-        ).join('');
-        document.getElementById('letterProgress').textContent = progress;
-    }
-    
-    saveCurrency() {
-        localStorage.setItem('donut_coins', this.coins.toString());
-        localStorage.setItem('donut_strawberries', this.strawberries.toString());
-        localStorage.setItem('donut_chocolates', this.chocolates.toString());
-        localStorage.setItem('donut_costumes', JSON.stringify(this.unlockedCostumes));
-    }
-    
-    createParticleEffect(x, y, z, type) {
-        const colors = {
-            coin: '#FFD700',
-            strawberry: '#FF6B6B',
-            chocolate: '#8B4513',
-            letter: '#FF00FF',
-            powerup: '#00FFFF'
-        };
+    endGame() {
+        this.gameState = 'gameOver';
+        this.showScreen('gameOverScreen');
+        this.stopAudio();
         
-        for (let i = 0; i < 10; i++) {
-            this.particles.push(new Particle3D(x, y, z, colors[type] || '#FFFFFF'));
-        }
+        // Calculate final stats
+        const finalAccuracy = this.totalNotes > 0 ? Math.round((this.hitNotes / this.totalNotes) * 100) : 0;
+        const grade = this.calculateGrade(finalAccuracy);
+        
+        document.getElementById('finalScore').textContent = this.score;
+        document.getElementById('maxCombo').textContent = this.maxCombo;
+        document.getElementById('finalAccuracy').textContent = finalAccuracy + '%';
+        
+        const gradeElement = document.getElementById('grade');
+        gradeElement.textContent = grade;
+        gradeElement.className = `grade-${grade}`;
     }
     
-    draw() {
+    calculateGrade(accuracy) {
+        if (accuracy >= 95) return 'S';
+        if (accuracy >= 90) return 'A';
+        if (accuracy >= 80) return 'B';
+        if (accuracy >= 70) return 'C';
+        if (accuracy >= 60) return 'D';
+        return 'F';
+    }
+    
+    render() {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         
-        // Draw 3D background (sideways sidewalk)
-        this.drawSidewaysSidewalk();
+        if (this.gameState !== 'playing') return;
         
-        // Collect all 3D objects and sort by depth
-        const allObjects = [];
+        // Draw lane dividers
+        this.drawLanes();
         
-        // Add all objects
-        this.obstacles.forEach(obstacle => {
-            allObjects.push({ obj: obstacle, type: 'obstacle', z: obstacle.z });
-        });
+        // Draw hit zone
+        this.drawHitZone();
         
-        this.movingObstacles.forEach(obstacle => {
-            allObjects.push({ obj: obstacle, type: 'movingObstacle', z: obstacle.z });
-        });
-        
-        this.collectibles.forEach(collectible => {
-            allObjects.push({ obj: collectible, type: 'collectible', z: collectible.z });
-        });
-        
-        this.letterCollectibles.forEach(letter => {
-            allObjects.push({ obj: letter, type: 'letter', z: letter.z });
-        });
-        
-        this.powerUps.forEach(powerUp => {
-            allObjects.push({ obj: powerUp, type: 'powerUp', z: powerUp.z });
-        });
-        
-        this.sprinkles.forEach(sprinkle => {
-            allObjects.push({ obj: sprinkle, type: 'sprinkle', z: sprinkle.z });
-        });
-        
-        // Always show Arnie (front view)
-        allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
-        
-        // Sort by z-coordinate (furthest first)
-        allObjects.sort((a, b) => b.z - a.z);
-        
-        // Draw all objects in depth order
-        allObjects.forEach(item => {
-            item.obj.draw(this.ctx, this);
-        });
-        
-        // Draw particles last
-        this.particles.forEach(particle => particle.draw(this.ctx, this));
-        
-        // Draw lane lines
-        this.drawLaneLines();
-        
-        // Draw pause indicator
-        if (this.isPaused) {
-            this.drawPauseIndicator();
+        // Draw tiles
+        for (const tile of this.tiles) {
+            if (tile.shouldRender(this.gameTime)) {
+                tile.draw(this.ctx, this.laneWidth);
+            }
         }
+        
+        // Draw UI effects
+        this.drawEffects();
     }
     
-    drawSidewaysSidewalk() {
-        // Sky
-        const gradient = this.ctx.createLinearGradient(0, 0, 0, this.canvas.height);
-        gradient.addColorStop(0, '#87CEEB');
-        gradient.addColorStop(0.6, '#87CEEB');
-        gradient.addColorStop(0.6, '#D3D3D3'); // Light gray sidewalk
-        gradient.addColorStop(1, '#696969'); // Darker gray street
-        
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-        
-        // Draw sidewalk stripes going sideways
-        this.ctx.strokeStyle = '#A9A9A9';
+    drawLanes() {
+        this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
         this.ctx.lineWidth = 2;
-        for (let x = 0; x < this.canvas.width; x += 40) {
+        
+        for (let i = 1; i < this.lanes; i++) {
+            const x = i * this.laneWidth;
             this.ctx.beginPath();
-            this.ctx.moveTo(x, this.groundLevel - 50);
+            this.ctx.moveTo(x, 0);
             this.ctx.lineTo(x, this.canvas.height);
             this.ctx.stroke();
         }
-        
-        // Arnie runs on the light gray part
-        this.ctx.fillStyle = 'rgba(211, 211, 211, 0.3)';
-        this.ctx.fillRect(0, this.groundLevel - 50, this.canvas.width, 50);
     }
     
-    drawLaneLines() {
-        // Draw lane dividers
-        this.ctx.strokeStyle = '#FFFFFF';
-        this.ctx.lineWidth = 3;
-        this.ctx.setLineDash([20, 10]);
-        
-        // Left lane line
+    drawHitZone() {
+        // Draw the target line where tiles should be tapped
+        this.ctx.strokeStyle = '#FFD700';
+        this.ctx.lineWidth = 4;
         this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width/2 + this.lanes[0] + this.laneWidth/2, this.groundLevel - 50);
-        this.ctx.lineTo(this.canvas.width/2 + this.lanes[0] + this.laneWidth/2, this.canvas.height);
+        this.ctx.moveTo(0, this.hitZone);
+        this.ctx.lineTo(this.canvas.width, this.hitZone);
         this.ctx.stroke();
         
-        // Right lane line
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.canvas.width/2 + this.lanes[1] + this.laneWidth/2, this.groundLevel - 50);
-        this.ctx.lineTo(this.canvas.width/2 + this.lanes[1] + this.laneWidth/2, this.canvas.height);
-        this.ctx.stroke();
-        
-        this.ctx.setLineDash([]);
+        // Draw hit zone background
+        this.ctx.fillStyle = 'rgba(255, 215, 0, 0.1)';
+        this.ctx.fillRect(0, this.hitZone - this.hitTolerance, this.canvas.width, this.hitTolerance * 2);
     }
     
-    drawModeIndicator() {
-        this.ctx.save();
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-        this.ctx.font = '24px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('Switching to first-person view...', this.canvas.width/2, 50);
-        this.ctx.restore();
-    }
-    
-    drawPauseIndicator() {
-        this.ctx.save();
-        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        this.ctx.font = '48px Arial';
-        this.ctx.textAlign = 'center';
-        this.ctx.fillText('PAUSED', this.canvas.width/2, this.canvas.height/2);
-        
-        this.ctx.font = '24px Arial';
-        const remaining = Math.ceil(this.pauseTimer / 60);
-        this.ctx.fillText(`Resuming in ${remaining}s`, this.canvas.width/2, this.canvas.height/2 + 50);
-        this.ctx.restore();
+    drawEffects() {
+        // Draw combo text
+        if (this.combo > 5) {
+            this.ctx.fillStyle = '#FFD700';
+            this.ctx.font = 'bold 24px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText(`${this.combo} COMBO!`, this.canvas.width / 2, 100);
+        }
     }
     
     gameLoop() {
         this.update();
-        this.draw();
+        this.render();
         requestAnimationFrame(() => this.gameLoop());
     }
 }
 
-// Arnie the Donut - with arms, legs, and eyes!
-class ArnieDonut {
-    constructor(x, y, z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.lane = 1;
-        this.targetX = x;
-        this.isJumping = false;
-        this.isRolling = false;
-        this.jumpHeight = 0;
-        this.jumpSpeed = 0;
-        this.onGround = true;
-        this.costume = 'default';
-        this.isInvulnerable = false;
-        this.powerUpTimer = 0;
-        this.activePowerUp = null;
-        this.animationFrame = 0;
-        this.runCycle = 0;
+// Tile class representing falling notes
+class Tile {
+    constructor(lane, time, type = 'normal', duration = 0) {
+        this.lane = lane;
+        this.time = time; // When the tile should be hit (milliseconds)
+        this.type = type; // 'normal' or 'hold'
+        this.duration = duration; // For hold notes (milliseconds)
+        this.y = -50; // Start above screen
+        this.hit = false;
+        this.missed = false;
+        this.holding = false; // For hold notes
+        this.alpha = 1;
     }
     
-    moveLeft() {
-        if (this.lane > 0) {
-            this.lane--;
-            this.targetX = game.lanes[this.lane];
-        }
-    }
-    
-    moveRight() {
-        if (this.lane < 2) {
-            this.lane++;
-            this.targetX = game.lanes[this.lane];
-        }
-    }
-    
-    jump() {
-        if (this.onGround && !this.isRolling) {
-            this.isJumping = true;
-            this.jumpSpeed = -15;
-            this.onGround = false;
-        }
-    }
-    
-    roll() {
-        if (this.onGround && !this.isJumping) {
-            this.isRolling = true;
-        }
-    }
-    
-    stopRolling() {
-        this.isRolling = false;
-    }
-    
-    activatePowerUp(type) {
-        this.activePowerUp = type;
-        this.powerUpTimer = 300;
+    update(gameTime, fallSpeed) {
+        // Calculate position based on timing
+        const timeUntilHit = this.time - gameTime;
+        const fallDistance = 600; // Distance from spawn to hit zone
+        const fallTime = fallDistance / fallSpeed; // Time to fall (roughly)
         
-        if (type === 'glaze') {
-            this.isInvulnerable = true;
+        this.y = 500 - (timeUntilHit / fallTime) * fallDistance;
+        
+        // Fade out if missed
+        if (this.missed) {
+            this.alpha = Math.max(0, this.alpha - 0.05);
         }
     }
     
-    update() {
-        // Faster lane transition
-        this.x += (this.targetX - this.x) * 0.4;
+    shouldRender(gameTime) {
+        return gameTime >= this.time - 3000 && !this.hit; // Show 3 seconds before hit time
+    }
+    
+    draw(ctx, laneWidth) {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
         
-        // Jump physics
-        if (this.isJumping) {
-            this.jumpHeight += this.jumpSpeed;
-            this.jumpSpeed += 0.8;
+        const x = this.lane * laneWidth + 10;
+        const width = laneWidth - 20;
+        const height = this.type === 'hold' ? Math.max(40, this.duration / 10) : 40;
+        
+        // Draw tile based on type
+        if (this.type === 'hold') {
+            // Hold note - longer gradient tile
+            const gradient = ctx.createLinearGradient(x, this.y - height, x, this.y);
+            gradient.addColorStop(0, '#00BFFF');
+            gradient.addColorStop(0.5, '#0080FF');
+            gradient.addColorStop(1, '#0040FF');
+            ctx.fillStyle = gradient;
             
-            if (this.jumpHeight >= 0) {
-                this.jumpHeight = 0;
-                this.isJumping = false;
-                this.onGround = true;
-                this.jumpSpeed = 0;
-            }
-        }
-        
-        // Update y position
-        this.y = game.groundLevel - this.jumpHeight + (this.isRolling ? 20 : 0);
-        
-        // Power-up timer
-        if (this.powerUpTimer > 0) {
-            this.powerUpTimer--;
-            if (this.powerUpTimer === 0) {
-                this.activePowerUp = null;
-                this.isInvulnerable = false;
-            }
-        }
-        
-        this.animationFrame++;
-        this.runCycle = Math.floor(this.animationFrame / 10) % 4;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        ctx.save();
-        
-        // Power-up effects
-        if (this.isInvulnerable) {
-            ctx.globalAlpha = 0.7;
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = '#00FFFF';
-        }
-        
-        // Draw Arnie with body parts
-        this.drawArnie(ctx, proj);
-        
-        ctx.restore();
-    }
-    
-    drawArnie(ctx, proj) {
-        const size = 60 * proj.scale;
-        
-        // Draw simple stick legs (black lines with circles at bottom)
-        ctx.strokeStyle = '#000000';
-        ctx.lineWidth = 3 * proj.scale;
-        
-        // Left leg
-        ctx.beginPath();
-        ctx.moveTo(proj.x - size * 0.15, proj.y + size * 0.3);
-        ctx.lineTo(proj.x - size * 0.15, proj.y + size * 0.7);
-        ctx.stroke();
-        
-        // Right leg  
-        ctx.beginPath();
-        ctx.moveTo(proj.x + size * 0.15, proj.y + size * 0.3);
-        ctx.lineTo(proj.x + size * 0.15, proj.y + size * 0.7);
-        ctx.stroke();
-        
-        // Feet (circles at end of legs)
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(proj.x - size * 0.15, proj.y + size * 0.7, size * 0.05, 0, Math.PI * 2);
-        ctx.arc(proj.x + size * 0.15, proj.y + size * 0.7, size * 0.05, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Draw donut body
-        ctx.font = `${size}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText('🍩', proj.x, proj.y);
-        
-        // Draw eyes
-        ctx.font = `${size * 0.3}px Arial`;
-        ctx.fillText('👀', proj.x, proj.y - size * 0.2);
-        
-        // Add costume on top
-        const costumeSprites = {
-            default: '',
-            police: '👕',
-            rockstar: '🎸',
-            alien: '👽',
-            chef: '👨‍🍳',
-            superhero: '🦸‍♂️',
-            sailor: '⚓'
-        };
-        
-        if (this.costume !== 'default' && costumeSprites[this.costume]) {
-            ctx.font = `${size * 0.5}px Arial`;
-            ctx.fillText(costumeSprites[this.costume], proj.x, proj.y - size * 0.4);
-        }
-    }
-    
-    reset() {
-        this.x = 0;
-        this.y = game.groundLevel;
-        this.z = 0;
-        this.lane = 1;
-        this.targetX = 0;
-        this.isJumping = false;
-        this.isRolling = false;
-        this.jumpHeight = 0;
-        this.jumpSpeed = 0;
-        this.onGround = true;
-        this.isInvulnerable = false;
-        this.powerUpTimer = 0;
-        this.activePowerUp = null;
-        this.animationFrame = 0;
-        this.runCycle = 0;
-    }
-}
-
-// Updated Obstacle class with puddles
-class Obstacle3D {
-    constructor(x, y, z, type) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.type = type;
-        this.canJumpOver = ['manhole', 'puddle'].includes(type);
-        this.canRollUnder = ['fork', 'spoon'].includes(type);
-        this.animationFrame = 0;
-    }
-    
-    update(speed) {
-        this.z -= speed;
-        this.animationFrame++;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        const size = 40 * proj.scale;
-        
-        ctx.save();
-        
-        switch(this.type) {
-            case 'cone':
-                this.draw3DCone(ctx, proj.x, proj.y, size);
-                break;
-            case 'manhole':
-                // Keep original emoji for manhole
-                ctx.font = `${80 * proj.scale}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.fillText('🕳️', proj.x, proj.y);
-                break;
-            case 'puddle':
-                this.draw3DPuddle(ctx, proj.x, proj.y, size);
-                break;
-            case 'fork':
-                this.draw3DFork(ctx, proj.x, proj.y, size);
-                break;
-            case 'spoon':
-                this.draw3DSpoon(ctx, proj.x, proj.y, size);
-                break;
-        }
-        
-        ctx.restore();
-    }
-    
-    draw3DCone(ctx, x, y, size) {
-        // Orange traffic cone with 3D effect
-        const gradient = ctx.createLinearGradient(x - size/2, y - size, x + size/2, y);
-        gradient.addColorStop(0, '#FF8C00');
-        gradient.addColorStop(0.7, '#FF4500');
-        gradient.addColorStop(1, '#B22222');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.moveTo(x, y - size);
-        ctx.lineTo(x - size/2, y);
-        ctx.lineTo(x + size/2, y);
-        ctx.closePath();
-        ctx.fill();
-        
-        // White stripes
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x - size/3, y - size*0.7, size*0.66, size*0.1);
-        ctx.fillRect(x - size/4, y - size*0.4, size*0.5, size*0.08);
-    }
-    
-    draw3DManhole(ctx, x, y, size) {
-        // Dark circular manhole with 3D depth
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size/2);
-        gradient.addColorStop(0, '#1C1C1C');
-        gradient.addColorStop(0.8, '#2F2F2F');
-        gradient.addColorStop(1, '#0A0A0A');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.arc(x, y, size/2, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Inner shadow effect
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(x, y, size/3, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Grid pattern
-        ctx.strokeStyle = '#444444';
-        ctx.lineWidth = 2;
-        for(let i = -1; i <= 1; i++) {
-            ctx.beginPath();
-            ctx.moveTo(x + i * size/6, y - size/4);
-            ctx.lineTo(x + i * size/6, y + size/4);
-            ctx.stroke();
+            // Draw hold note body
+            ctx.fillRect(x, this.y - height, width, height);
             
-            ctx.beginPath();
-            ctx.moveTo(x - size/4, y + i * size/6);
-            ctx.lineTo(x + size/4, y + i * size/6);
-            ctx.stroke();
-        }
-    }
-    
-    draw3DPuddle(ctx, x, y, size) {
-        // Blue water puddle with ripple effect
-        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size/2);
-        gradient.addColorStop(0, '#87CEEB');
-        gradient.addColorStop(0.5, '#4682B4');
-        gradient.addColorStop(1, '#191970');
-        
-        ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.ellipse(x, y, size/2, size/3, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Ripple effects
-        ctx.strokeStyle = 'rgba(173, 216, 230, 0.6)';
-        ctx.lineWidth = 2;
-        for(let i = 1; i <= 3; i++) {
-            ctx.beginPath();
-            ctx.ellipse(x, y, size/(2+i*0.5), size/(3+i*0.5), 0, 0, Math.PI * 2);
-            ctx.stroke();
-        }
-    }
-    
-    draw3DFork(ctx, x, y, size) {
-        // Silver fork with 3D metallic effect
-        const gradient = ctx.createLinearGradient(x - size/4, y - size/2, x + size/4, y + size/2);
-        gradient.addColorStop(0, '#E6E6FA');
-        gradient.addColorStop(0.5, '#C0C0C0');
-        gradient.addColorStop(1, '#808080');
-        
-        // Handle
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x - size/8, y - size/2, size/4, size);
-        
-        // Prongs
-        for(let i = -1; i <= 1; i++) {
-            ctx.fillRect(x + i * size/6 - size/16, y - size/2, size/8, size/2);
-        }
-        
-        // Highlight
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(x - size/10, y - size/2, size/20, size*0.8);
-    }
-    
-    draw3DSpoon(ctx, x, y, size) {
-        // Silver spoon with 3D metallic effect
-        const gradient = ctx.createLinearGradient(x - size/4, y - size/2, x + size/4, y + size/2);
-        gradient.addColorStop(0, '#E6E6FA');
-        gradient.addColorStop(0.5, '#C0C0C0');
-        gradient.addColorStop(1, '#808080');
-        
-        // Handle
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x - size/8, y, size/4, size/2);
-        
-        // Bowl
-        ctx.beginPath();
-        ctx.ellipse(x, y - size/4, size/3, size/2, 0, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Highlight on bowl
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.ellipse(x - size/6, y - size/3, size/8, size/6, 0, 0, Math.PI * 2);
-        ctx.fill();
-    }
-}
-
-// Moving obstacles that appear right in front
-class MovingObstacle3D {
-    constructor(x, y, z, type) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.type = type;
-        this.animationFrame = 0;
-        this.isAlive = true;
-        this.timer = 0;
-    }
-    
-    update(gameSpeed) {
-        this.z -= gameSpeed;
-        this.animationFrame++;
-        this.timer++;
-        
-        // Disappear after some time
-        if (this.timer > 180) { // 3 seconds
-            this.isAlive = false;
-        }
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        const size = (this.type === 'car' ? 60 : 30) * proj.scale;
-        
-        ctx.save();
-        
-        if (this.type === 'car') {
-            this.draw3DCar(ctx, proj.x, proj.y, size);
+            // Draw hold note borders
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(x, this.y - height, width, height);
+            
+            // Draw hold indicator
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = 'bold 16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('HOLD', x + width/2, this.y - height/2 + 5);
         } else {
-            this.draw3DFeet(ctx, proj.x, proj.y, size);
+            // Normal note - gradient blue tile
+            const gradient = ctx.createLinearGradient(x, this.y - height, x, this.y);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(0.5, '#4682B4');
+            gradient.addColorStop(1, '#191970');
+            ctx.fillStyle = gradient;
+            
+            // Draw normal tile
+            ctx.fillRect(x, this.y - height, width, height);
+            
+            // Draw border
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, this.y - height, width, height);
+        }
+        
+        // Draw hit/miss feedback
+        if (this.hit || this.missed) {
+            ctx.fillStyle = this.hit ? '#00FF00' : '#FF0000';
+            ctx.globalAlpha = 0.7;
+            ctx.fillRect(x, this.y - height, width, height);
         }
         
         ctx.restore();
     }
-    
-    draw3DCar(ctx, x, y, size) {
-        // 3D car with gradient and highlights
-        const gradient = ctx.createLinearGradient(x - size/2, y - size/3, x + size/2, y + size/3);
-        gradient.addColorStop(0, '#FFD700');
-        gradient.addColorStop(0.5, '#FFA500');
-        gradient.addColorStop(1, '#FF8C00');
-        
-        // Car body
-        ctx.fillStyle = gradient;
-        ctx.fillRect(x - size/2, y - size/3, size, size/1.5);
-        
-        // Car roof (darker)
-        ctx.fillStyle = '#FF6347';
-        ctx.fillRect(x - size/3, y - size/2, size/1.5, size/4);
-        
-        // Windows
-        ctx.fillStyle = '#87CEEB';
-        ctx.fillRect(x - size/4, y - size/2.5, size/2, size/6);
-        
-        // Wheels
-        ctx.fillStyle = '#2F2F2F';
-        ctx.beginPath();
-        ctx.arc(x - size/3, y + size/6, size/8, 0, Math.PI * 2);
-        ctx.arc(x + size/3, y + size/6, size/8, 0, Math.PI * 2);
-        ctx.fill();
-        
-        // Wheel highlights
-        ctx.fillStyle = '#C0C0C0';
-        ctx.beginPath();
-        ctx.arc(x - size/3, y + size/6, size/12, 0, Math.PI * 2);
-        ctx.arc(x + size/3, y + size/6, size/12, 0, Math.PI * 2);
-        ctx.fill();
-    }
-    
-    draw3DFeet(ctx, x, y, size) {
-        // 3D walking feet with shadows
-        const walkCycle = Math.floor(this.animationFrame / 10) % 4;
-        const leftOffset = walkCycle < 2 ? -2 : 2;
-        const rightOffset = walkCycle < 2 ? 2 : -2;
-        
-        // Left shoe
-        const leftGradient = ctx.createLinearGradient(x - size/2, y - size/4, x - size/4, y + size/4);
-        leftGradient.addColorStop(0, '#8B4513');
-        leftGradient.addColorStop(1, '#654321');
-        
-        ctx.fillStyle = leftGradient;
-        ctx.fillRect(x - size/2 + leftOffset, y - size/4, size/3, size/2);
-        
-        // Right shoe  
-        const rightGradient = ctx.createLinearGradient(x + size/4, y - size/4, x + size/2, y + size/4);
-        rightGradient.addColorStop(0, '#8B4513');
-        rightGradient.addColorStop(1, '#654321');
-        
-        ctx.fillStyle = rightGradient;
-        ctx.fillRect(x + size/6 + rightOffset, y - size/4, size/3, size/2);
-        
-        // Shoe highlights
-        ctx.fillStyle = '#D2691E';
-        ctx.fillRect(x - size/2 + leftOffset, y - size/4, size/6, size/8);
-        ctx.fillRect(x + size/6 + rightOffset, y - size/4, size/6, size/8);
-    }
 }
 
-// Other classes remain similar...
-class Collectible3D {
-    constructor(x, y, z, type) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.type = type;
-        this.points = type === 'coin' ? 100 : 50;
-        this.animationFrame = 0;
-    }
-    
-    update(speed) {
-        this.z -= speed;
-        this.animationFrame++;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        const collectibleSprites = {
-            coin: '🪙',
-            strawberry: '🍓',
-            chocolate: '🍫'
-        };
-        
-        ctx.save();
-        ctx.shadowBlur = 15 * proj.scale;
-        ctx.shadowColor = '#FFD700';
-        
-        const floatOffset = Math.sin(this.animationFrame * 0.1) * 5 * proj.scale;
-        
-        ctx.font = `${40 * proj.scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(collectibleSprites[this.type] || '⭐', proj.x, proj.y + floatOffset);
-        
-        ctx.restore();
-    }
-}
-
-class LetterCollectible3D {
-    constructor(x, y, z, letter) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.letter = letter;
-        this.animationFrame = 0;
-    }
-    
-    update(speed) {
-        this.z -= speed;
-        this.animationFrame++;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        ctx.save();
-        ctx.shadowBlur = 20 * proj.scale;
-        ctx.shadowColor = '#FF00FF';
-        
-        const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.3) * proj.scale;
-        
-        ctx.fillStyle = '#FF00FF';
-        ctx.font = `${60 * scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText('⬜', proj.x, proj.y);
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = `${40 * scale}px Arial`;
-        ctx.fillText(this.letter, proj.x, proj.y);
-        
-        ctx.restore();
-    }
-}
-
-// PowerUp with honey cluster as chocolate + strawberry
-class PowerUp3D {
-    constructor(x, y, z, type) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.type = type;
-        this.animationFrame = 0;
-    }
-    
-    update(speed) {
-        this.z -= speed;
-        this.animationFrame++;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        const powerUpSprites = {
-            icing_gun: '🔫',
-            honey_cluster: '🍫🍓', // Chocolate + strawberry stuck together
-            glaze: '✨'
-        };
-        
-        ctx.save();
-        ctx.shadowBlur = 20 * proj.scale;
-        ctx.shadowColor = '#00FFFF';
-        
-        const scale = (1 + Math.sin(this.animationFrame * 0.2) * 0.2) * proj.scale;
-        ctx.font = `${50 * scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(powerUpSprites[this.type] || '⚡', proj.x, proj.y);
-        
-        ctx.restore();
-    }
-}
-
-class Sprinkle3D {
-    constructor(x, y, z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.vx = (Math.random() - 0.5) * 2;
-        this.vy = Math.random() * 2;
-        this.vz = Math.random() * 2;
-        this.life = 60;
-        this.maxLife = 60;
-        this.colors = ['#FF69B4', '#00FFFF', '#FFFF00', '#FF6347', '#32CD32'];
-        this.color = this.colors[Math.floor(Math.random() * this.colors.length)];
-    }
-    
-    update(gameSpeed) {
-        this.z -= gameSpeed;
-        this.x += this.vx;
-        this.y += this.vy;
-        this.z += this.vz;
-        this.life--;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        ctx.save();
-        ctx.globalAlpha = this.life / this.maxLife;
-        ctx.fillStyle = this.color;
-        
-        // Draw tiny rectangle sprinkles instead of circles
-        const size = 2 * proj.scale;
-        ctx.fillRect(proj.x - size/2, proj.y - size/2, size * 2, size);
-        
-        ctx.restore();
-    }
-}
-
-class Particle3D {
-    constructor(x, y, z, color) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.vx = (Math.random() - 0.5) * 10;
-        this.vy = (Math.random() - 0.5) * 10;
-        this.vz = (Math.random() - 0.5) * 5;
-        this.color = color;
-        this.life = 30;
-        this.maxLife = 30;
-    }
-    
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
-        this.z += this.vz;
-        this.vy += 0.3;
-        this.life--;
-    }
-    
-    draw(ctx, game) {
-        const proj = game.project3D(this.x, this.y, this.z);
-        
-        ctx.save();
-        ctx.globalAlpha = this.life / this.maxLife;
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(proj.x, proj.y, 4 * proj.scale, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-    }
-}
-
-// Initialize game
-let game;
+// Initialize game when page loads
 document.addEventListener('DOMContentLoaded', () => {
-    game = new DonutEscapeGame();
+    new MagicTilesGame();
 });

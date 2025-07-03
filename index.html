@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Donut Escape - Endless Runner Game</title>
+    <title>Magic Tiles - Rhythm Game</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -11,97 +11,54 @@
         <!-- Main Menu -->
         <div id="mainMenu" class="screen">
             <div class="menu-content">
-                <h1 class="game-title">🍩 DONUT ESCAPE</h1>
-                <p class="game-subtitle">Help Arnie escape from being eaten!</p>
-                <button id="startBtn" class="menu-btn">START GAME</button>
-                <button id="costumeBtn" class="menu-btn">COSTUMES</button>
-                <div class="controls-info">
-                    <p>🎮 Controls:</p>
-                    <p>← → Arrow Keys: Switch Lanes</p>
-                    <p>↑ Up Arrow: Jump</p>
-                    <p>↓ Down Arrow: Roll</p>
-                    <p>SPACEBAR: Pause for 2 seconds</p>
+                <h1 class="game-title">🎵 MAGIC TILES</h1>
+                <p class="game-subtitle">Tap the falling tiles to the beat!</p>
+                <button id="playBtn" class="menu-btn">PLAY GAME</button>
+                <button id="songsBtn" class="menu-btn">SELECT SONG</button>
+                <div class="instructions">
+                    <p>🎮 How to Play:</p>
+                    <p>• Tap blue tiles as they reach the bottom</p>
+                    <p>• Hold long tiles for the full duration</p>
+                    <p>• Don't miss any tiles!</p>
+                    <p>• Follow the rhythm of the music</p>
                 </div>
             </div>
         </div>
 
-        <!-- Intro Video -->
-        <div id="introVideo" class="screen hidden">
-            <div class="intro-scene">
-                <div id="introText">
-                    <h2>The Story of Arnie...</h2>
-                </div>
-                <div id="introAnimation">
-                    <div id="person">😋</div>
-                    <div id="plate">🍽️</div>
-                    <div id="arnieIntro">
-                        <span id="donutBody">🍩</span>
-                    </div>
-                    <div id="door">🚪</div>
-                </div>
-                <div id="introNarrative"></div>
-            </div>
-        </div>
-
-        <!-- Costume Select Screen -->
-        <div id="costumeMenu" class="screen hidden">
+        <!-- Song Selection -->
+        <div id="songMenu" class="screen hidden">
             <div class="menu-content">
-                <h2>Choose Your Costume</h2>
-                <div class="costume-grid">
-                    <div class="costume-card active" data-costume="default" data-cost="0">
-                        <div class="costume-preview">🍩</div>
-                        <p>Original Arnie</p>
-                        <span class="cost">FREE</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="police" data-cost="25">
-                        <div class="costume-preview">👕🍩</div>
-                        <p>Police Donut</p>
-                        <span class="cost">🪙25 🍓15 🍫15</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="rockstar" data-cost="40">
-                        <div class="costume-preview">🎸🍩</div>
-                        <p>Rockstar Donut</p>
-                        <span class="cost">🪙40 🍓20 🍫20</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="alien" data-cost="60">
-                        <div class="costume-preview">👽🍩</div>
-                        <p>Alien Donut</p>
-                        <span class="cost">🪙60 🍓30 🍫30</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="chef" data-cost="80">
-                        <div class="costume-preview">👨‍🍳🍩</div>
-                        <p>Chef Donut</p>
-                        <span class="cost">🪙80 🍓40 🍫40</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="superhero" data-cost="120">
-                        <div class="costume-preview">🦸‍♂️🍩</div>
-                        <p>Super Donut</p>
-                        <span class="cost">🪙120 🍓60 🍫60</span>
-                    </div>
-                    <div class="costume-card locked" data-costume="sailor" data-cost="150">
-                        <div class="costume-preview">⚓🍩</div>
-                        <p>Sailor Donut</p>
-                        <span class="cost">🪙150 🍓75 🍫75</span>
-                    </div>
+                <h2>Choose Your Song</h2>
+                <div id="songList" class="song-list">
+                    <!-- Songs will be populated by JavaScript -->
                 </div>
-                <button id="backToMenuBtn" class="menu-btn">BACK TO MENU</button>
+                <button id="backToMainBtn" class="menu-btn">BACK TO MENU</button>
             </div>
         </div>
 
         <!-- Game Screen -->
         <div id="gameScreen" class="screen hidden">
+            <!-- Game UI -->
             <div id="gameUI">
                 <div id="scoreDisplay">Score: <span id="score">0</span></div>
-                <div id="distanceDisplay">Distance: <span id="distance">0</span>m</div>
-                <div id="currencyDisplay">
-                    <span id="coins">🪙 0</span>
-                    <span id="strawberries">🍓 0</span>
-                    <span id="chocolates">🍫 0</span>
-                </div>
-                <div id="donutLetters">DONUT: <span id="letterProgress">-----</span></div>
+                <div id="comboDisplay">Combo: <span id="combo">0</span></div>
+                <div id="accuracyDisplay">Accuracy: <span id="accuracy">100%</span></div>
                 <button id="pauseBtn" class="ui-btn">⏸️ PAUSE</button>
             </div>
+
+            <!-- Game Canvas -->
             <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+            <!-- Tap Zones (invisible, for touch detection) -->
+            <div id="tapZones">
+                <div class="tap-zone" data-lane="0"></div>
+                <div class="tap-zone" data-lane="1"></div>
+                <div class="tap-zone" data-lane="2"></div>
+                <div class="tap-zone" data-lane="3"></div>
+            </div>
+
+            <!-- Audio Element -->
+            <audio id="gameAudio" preload="auto"></audio>
         </div>
 
         <!-- Pause Menu -->
@@ -118,13 +75,17 @@
         <div id="gameOverScreen" class="screen hidden">
             <div class="menu-content">
                 <h2>GAME OVER!</h2>
-                <p>Arnie got caught! 😢</p>
                 <div id="finalStats">
                     <p>Final Score: <span id="finalScore">0</span></p>
-                    <p>Distance: <span id="finalDistance">0</span>m</p>
+                    <p>Max Combo: <span id="maxCombo">0</span></p>
+                    <p>Final Accuracy: <span id="finalAccuracy">0%</span></p>
+                    <div id="gradeDisplay">
+                        <span id="grade">F</span>
+                    </div>
                 </div>
                 <button id="playAgainBtn" class="menu-btn">PLAY AGAIN</button>
-                <button id="backToMainBtn" class="menu-btn">MAIN MENU</button>
+                <button id="backToSongsBtn" class="menu-btn">CHOOSE SONG</button>
+                <button id="backToMainMenuBtn" class="menu-btn">MAIN MENU</button>
             </div>
         </div>
     </div>
