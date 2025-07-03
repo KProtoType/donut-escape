@@ -368,10 +368,8 @@ class DonutEscapeGame {
     update() {
         if (this.gameState !== 'playing') return;
         
-        // Switch to first-person view after 3 seconds
-        if (!this.firstPersonMode && Date.now() - this.gameStartTime > 3000) {
-            this.firstPersonMode = true;
-        }
+        // Keep third-person view to see everything from the front
+        // (Removed automatic first-person switching)
         
         // Handle pause timer
         if (this.isPaused) {
@@ -636,10 +634,8 @@ class DonutEscapeGame {
             allObjects.push({ obj: sprinkle, type: 'sprinkle', z: sprinkle.z });
         });
         
-        // Add Arnie only if not in first-person mode
-        if (!this.firstPersonMode) {
-            allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
-        }
+        // Always show Arnie (front view)
+        allObjects.push({ obj: this.player, type: 'player', z: this.player.z });
         
         // Sort by z-coordinate (furthest first)
         allObjects.sort((a, b) => b.z - a.z);
@@ -652,10 +648,8 @@ class DonutEscapeGame {
         // Draw particles last
         this.particles.forEach(particle => particle.draw(this.ctx, this));
         
-        // Draw mode indicator
-        if (!this.firstPersonMode && this.gameState === 'playing') {
-            this.drawModeIndicator();
-        }
+        // Draw lane lines
+        this.drawLaneLines();
         
         // Draw pause indicator
         if (this.isPaused) {
@@ -687,6 +681,27 @@ class DonutEscapeGame {
         // Arnie runs on the light gray part
         this.ctx.fillStyle = 'rgba(211, 211, 211, 0.3)';
         this.ctx.fillRect(0, this.groundLevel - 50, this.canvas.width, 50);
+    }
+    
+    drawLaneLines() {
+        // Draw lane dividers
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 3;
+        this.ctx.setLineDash([20, 10]);
+        
+        // Left lane line
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.canvas.width/2 + this.lanes[0] + this.laneWidth/2, this.groundLevel - 50);
+        this.ctx.lineTo(this.canvas.width/2 + this.lanes[0] + this.laneWidth/2, this.canvas.height);
+        this.ctx.stroke();
+        
+        // Right lane line
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.canvas.width/2 + this.lanes[1] + this.laneWidth/2, this.groundLevel - 50);
+        this.ctx.lineTo(this.canvas.width/2 + this.lanes[1] + this.laneWidth/2, this.canvas.height);
+        this.ctx.stroke();
+        
+        this.ctx.setLineDash([]);
     }
     
     drawModeIndicator() {
@@ -781,8 +796,8 @@ class ArnieDonut {
     }
     
     update() {
-        // Smooth lane transition
-        this.x += (this.targetX - this.x) * 0.2;
+        // Faster lane transition
+        this.x += (this.targetX - this.x) * 0.4;
         
         // Jump physics
         if (this.isJumping) {
@@ -917,18 +932,150 @@ class Obstacle3D {
     
     draw(ctx, game) {
         const proj = game.project3D(this.x, this.y, this.z);
+        const size = 40 * proj.scale;
         
-        const obstacleSprites = {
-            cone: '🚧',
-            manhole: '🕳️',
-            puddle: '🌊', // Actual puddle wave
-            fork: '🍴',
-            spoon: '🥄'
-        };
+        ctx.save();
         
-        ctx.font = `${80 * proj.scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(obstacleSprites[this.type] || '❌', proj.x, proj.y);
+        switch(this.type) {
+            case 'cone':
+                this.draw3DCone(ctx, proj.x, proj.y, size);
+                break;
+            case 'manhole':
+                this.draw3DManhole(ctx, proj.x, proj.y, size);
+                break;
+            case 'puddle':
+                this.draw3DPuddle(ctx, proj.x, proj.y, size);
+                break;
+            case 'fork':
+                this.draw3DFork(ctx, proj.x, proj.y, size);
+                break;
+            case 'spoon':
+                this.draw3DSpoon(ctx, proj.x, proj.y, size);
+                break;
+        }
+        
+        ctx.restore();
+    }
+    
+    draw3DCone(ctx, x, y, size) {
+        // Orange traffic cone with 3D effect
+        const gradient = ctx.createLinearGradient(x - size/2, y - size, x + size/2, y);
+        gradient.addColorStop(0, '#FF8C00');
+        gradient.addColorStop(0.7, '#FF4500');
+        gradient.addColorStop(1, '#B22222');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.moveTo(x, y - size);
+        ctx.lineTo(x - size/2, y);
+        ctx.lineTo(x + size/2, y);
+        ctx.closePath();
+        ctx.fill();
+        
+        // White stripes
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x - size/3, y - size*0.7, size*0.66, size*0.1);
+        ctx.fillRect(x - size/4, y - size*0.4, size*0.5, size*0.08);
+    }
+    
+    draw3DManhole(ctx, x, y, size) {
+        // Dark circular manhole with 3D depth
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size/2);
+        gradient.addColorStop(0, '#1C1C1C');
+        gradient.addColorStop(0.8, '#2F2F2F');
+        gradient.addColorStop(1, '#0A0A0A');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size/2, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Inner shadow effect
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.arc(x, y, size/3, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Grid pattern
+        ctx.strokeStyle = '#444444';
+        ctx.lineWidth = 2;
+        for(let i = -1; i <= 1; i++) {
+            ctx.beginPath();
+            ctx.moveTo(x + i * size/6, y - size/4);
+            ctx.lineTo(x + i * size/6, y + size/4);
+            ctx.stroke();
+            
+            ctx.beginPath();
+            ctx.moveTo(x - size/4, y + i * size/6);
+            ctx.lineTo(x + size/4, y + i * size/6);
+            ctx.stroke();
+        }
+    }
+    
+    draw3DPuddle(ctx, x, y, size) {
+        // Blue water puddle with ripple effect
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size/2);
+        gradient.addColorStop(0, '#87CEEB');
+        gradient.addColorStop(0.5, '#4682B4');
+        gradient.addColorStop(1, '#191970');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.ellipse(x, y, size/2, size/3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Ripple effects
+        ctx.strokeStyle = 'rgba(173, 216, 230, 0.6)';
+        ctx.lineWidth = 2;
+        for(let i = 1; i <= 3; i++) {
+            ctx.beginPath();
+            ctx.ellipse(x, y, size/(2+i*0.5), size/(3+i*0.5), 0, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+    }
+    
+    draw3DFork(ctx, x, y, size) {
+        // Silver fork with 3D metallic effect
+        const gradient = ctx.createLinearGradient(x - size/4, y - size/2, x + size/4, y + size/2);
+        gradient.addColorStop(0, '#E6E6FA');
+        gradient.addColorStop(0.5, '#C0C0C0');
+        gradient.addColorStop(1, '#808080');
+        
+        // Handle
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - size/8, y - size/2, size/4, size);
+        
+        // Prongs
+        for(let i = -1; i <= 1; i++) {
+            ctx.fillRect(x + i * size/6 - size/16, y - size/2, size/8, size/2);
+        }
+        
+        // Highlight
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(x - size/10, y - size/2, size/20, size*0.8);
+    }
+    
+    draw3DSpoon(ctx, x, y, size) {
+        // Silver spoon with 3D metallic effect
+        const gradient = ctx.createLinearGradient(x - size/4, y - size/2, x + size/4, y + size/2);
+        gradient.addColorStop(0, '#E6E6FA');
+        gradient.addColorStop(0.5, '#C0C0C0');
+        gradient.addColorStop(1, '#808080');
+        
+        // Handle
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - size/8, y, size/4, size/2);
+        
+        // Bowl
+        ctx.beginPath();
+        ctx.ellipse(x, y - size/4, size/3, size/2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Highlight on bowl
+        ctx.fillStyle = '#FFFFFF';
+        ctx.beginPath();
+        ctx.ellipse(x - size/6, y - size/3, size/8, size/6, 0, 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
@@ -957,19 +1104,79 @@ class MovingObstacle3D {
     
     draw(ctx, game) {
         const proj = game.project3D(this.x, this.y, this.z);
+        const size = (this.type === 'car' ? 60 : 30) * proj.scale;
         
-        let sprite;
+        ctx.save();
+        
         if (this.type === 'car') {
-            const carAnimation = ['🚕', '🚖', '🚗', '🚙'];
-            sprite = carAnimation[Math.floor(this.animationFrame / 15) % carAnimation.length];
+            this.draw3DCar(ctx, proj.x, proj.y, size);
         } else {
-            const feetAnimation = ['👟', '👠', '🥿', '👢'];
-            sprite = feetAnimation[Math.floor(this.animationFrame / 10) % feetAnimation.length];
+            this.draw3DFeet(ctx, proj.x, proj.y, size);
         }
         
-        ctx.font = `${(this.type === 'car' ? 100 : 60) * proj.scale}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.fillText(sprite, proj.x, proj.y);
+        ctx.restore();
+    }
+    
+    draw3DCar(ctx, x, y, size) {
+        // 3D car with gradient and highlights
+        const gradient = ctx.createLinearGradient(x - size/2, y - size/3, x + size/2, y + size/3);
+        gradient.addColorStop(0, '#FFD700');
+        gradient.addColorStop(0.5, '#FFA500');
+        gradient.addColorStop(1, '#FF8C00');
+        
+        // Car body
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x - size/2, y - size/3, size, size/1.5);
+        
+        // Car roof (darker)
+        ctx.fillStyle = '#FF6347';
+        ctx.fillRect(x - size/3, y - size/2, size/1.5, size/4);
+        
+        // Windows
+        ctx.fillStyle = '#87CEEB';
+        ctx.fillRect(x - size/4, y - size/2.5, size/2, size/6);
+        
+        // Wheels
+        ctx.fillStyle = '#2F2F2F';
+        ctx.beginPath();
+        ctx.arc(x - size/3, y + size/6, size/8, 0, Math.PI * 2);
+        ctx.arc(x + size/3, y + size/6, size/8, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Wheel highlights
+        ctx.fillStyle = '#C0C0C0';
+        ctx.beginPath();
+        ctx.arc(x - size/3, y + size/6, size/12, 0, Math.PI * 2);
+        ctx.arc(x + size/3, y + size/6, size/12, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    
+    draw3DFeet(ctx, x, y, size) {
+        // 3D walking feet with shadows
+        const walkCycle = Math.floor(this.animationFrame / 10) % 4;
+        const leftOffset = walkCycle < 2 ? -2 : 2;
+        const rightOffset = walkCycle < 2 ? 2 : -2;
+        
+        // Left shoe
+        const leftGradient = ctx.createLinearGradient(x - size/2, y - size/4, x - size/4, y + size/4);
+        leftGradient.addColorStop(0, '#8B4513');
+        leftGradient.addColorStop(1, '#654321');
+        
+        ctx.fillStyle = leftGradient;
+        ctx.fillRect(x - size/2 + leftOffset, y - size/4, size/3, size/2);
+        
+        // Right shoe  
+        const rightGradient = ctx.createLinearGradient(x + size/4, y - size/4, x + size/2, y + size/4);
+        rightGradient.addColorStop(0, '#8B4513');
+        rightGradient.addColorStop(1, '#654321');
+        
+        ctx.fillStyle = rightGradient;
+        ctx.fillRect(x + size/6 + rightOffset, y - size/4, size/3, size/2);
+        
+        // Shoe highlights
+        ctx.fillStyle = '#D2691E';
+        ctx.fillRect(x - size/2 + leftOffset, y - size/4, size/6, size/8);
+        ctx.fillRect(x + size/6 + rightOffset, y - size/4, size/6, size/8);
     }
 }
 
