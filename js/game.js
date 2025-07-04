@@ -16,7 +16,7 @@ class MagicTilesGame {
         this.canvas.height = 600;
         this.lanes = 4;
         this.laneWidth = this.canvas.width / this.lanes;
-        this.fallSpeed = 0.8; // Much slower fall speed
+        this.fallSpeed = 0.3; // Very slow fall speed for easier gameplay
         this.hitZone = this.canvas.height - 100;
         this.hitTolerance = 40;
         
@@ -1500,12 +1500,45 @@ class MagicTilesGame {
                     playPromise.then(() => {
                         console.log('🎵 Audio started');
                     }).catch(e => {
-                        console.log('Audio blocked by browser');
+                        console.log('Audio blocked by browser - trying backup');
+                        // If audio fails, create simple metronome
+                        this.startMetronome();
                     });
+                } else {
+                    this.startMetronome();
                 }
             }
         } catch (e) {
-            console.log('Audio failed to start');
+            console.log('Audio failed - using metronome');
+            this.startMetronome();
+        }
+    }
+    
+    startMetronome() {
+        // Simple backup metronome using Web Audio API
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            setInterval(() => {
+                if (this.gameState === 'playing' && !this.isPaused) {
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    
+                    oscillator.frequency.value = 440;
+                    oscillator.type = 'square';
+                    
+                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    
+                    oscillator.start();
+                    oscillator.stop(audioCtx.currentTime + 0.1);
+                }
+            }, 500); // Every 500ms
+        } catch (e) {
+            console.log('No audio available');
         }
     }
     
@@ -1538,7 +1571,7 @@ class MagicTilesGame {
         
         // Create tiles from song notes (they won't appear until START is pressed)
         song.notes.forEach(note => {
-            this.tiles.push(new Tile(note.lane, note.time + 5000, note.type, note.duration));
+            this.tiles.push(new Tile(note.lane, note.time + 2000, note.type, note.duration)); // Start tiles after 2 seconds
         });
         
         // DON'T generate background music yet - wait for START
