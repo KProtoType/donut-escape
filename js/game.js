@@ -1402,8 +1402,6 @@ class MagicTilesGame {
         // Allow taps in waitingToStart state (for START tile) or playing state
         if ((this.gameState !== 'playing' && this.gameState !== 'waitingToStart') || this.isPaused) return;
         
-        console.log(`🎮 handleTap called: lane=${lane}, pressed=${isPressed}, gameState=${this.gameState}`);
-        
         const tapZone = document.querySelectorAll('.tap-zone')[lane];
         
         if (isPressed) {
@@ -1488,32 +1486,26 @@ class MagicTilesGame {
     }
     
     startSimpleAudio() {
-        console.log('🎵 Starting simple audio...');
-        
         try {
             // Get the audio element
             const audio = document.getElementById('gameAudio');
             
             if (audio) {
-                console.log('Audio element found, attempting to play...');
-                audio.volume = 0.5;
+                audio.volume = 0.3; // Lower volume
                 
                 // Try to play
                 const playPromise = audio.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
-                        console.log('✅ Audio playing successfully!');
+                        console.log('🎵 Audio started');
                     }).catch(e => {
-                        console.error('❌ Audio play failed:', e);
-                        console.log('This usually means browser autoplay policy blocked it');
+                        console.log('Audio blocked by browser');
                     });
                 }
-            } else {
-                console.error('Audio element not found!');
             }
         } catch (e) {
-            console.error('Audio start failed:', e);
+            console.log('Audio failed to start');
         }
     }
     
@@ -1563,7 +1555,6 @@ class MagicTilesGame {
         if (audio && !audio.paused) {
             audio.pause();
             audio.currentTime = 0;
-            console.log('Audio stopped');
         }
     }
     
@@ -1587,31 +1578,22 @@ class MagicTilesGame {
     }
     
     checkTileHit(lane) {
-        console.log(`🖱️ CLICK DETECTED on lane ${lane}`);
-        console.log(`Total tiles: ${this.tiles.length}`);
-        console.log(`Hit tolerance: ${this.hitTolerance}`);
-        console.log(`Hit zone: ${this.hitZone}`);
-        
         const hitWindow = this.hitTolerance;
         let bestTile = null;
         let bestDistance = Infinity;
         
         // Find the closest tile in the hit zone for this lane
         for (const tile of this.tiles) {
-            console.log(`Checking tile: lane=${tile.lane}, y=${tile.y}, type=${tile.type}, hit=${tile.hit}`);
             if (tile.lane === lane && !tile.hit && !tile.missed) {
                 const distance = Math.abs(tile.y - this.hitZone);
-                console.log(`Tile distance from hit zone: ${distance}`);
                 if (distance <= hitWindow && distance < bestDistance) {
                     bestTile = tile;
                     bestDistance = distance;
-                    console.log(`✅ Found better tile! Distance: ${distance}`);
                 }
             }
         }
         
         if (bestTile) {
-            console.log(`🎯 HIT TILE: ${bestTile.type} at distance ${bestDistance}`);
             if (bestTile.type === 'start') {
                 console.log('🚀 STARTING GAME!');
                 // Start the game when START tile is hit
@@ -1625,7 +1607,6 @@ class MagicTilesGame {
                 return true;
             }
         } else {
-            console.log('❌ NO TILE HIT');
             // Wrong tap - only trigger game over if game has started
             if (this.hasStarted) {
                 this.combo = 0; // Reset combo on wrong tap
