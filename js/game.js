@@ -1517,6 +1517,9 @@ class MagicTilesGame {
         this.gameState = 'playing';
         this.hasStarted = true;
         this.startTime = performance.now(); // Reset timing when actual game starts
+        
+        // NOW start the audio after game begins
+        this.generateBackgroundMusic(this.currentSong);
     }
     
     resetGame() {
@@ -1551,8 +1554,7 @@ class MagicTilesGame {
             this.tiles.push(new Tile(note.lane, note.time + 5000, note.type, note.duration));
         });
         
-        // Generate background music (simple beep pattern)
-        this.generateBackgroundMusic(song);
+        // DON'T generate background music yet - wait for START
     }
     
     generateBackgroundMusic(song) {
@@ -1571,12 +1573,12 @@ class MagicTilesGame {
     }
     
     playMetronome(audioCtx, beatInterval, duration) {
-        let time = 0;
         const totalBeats = Math.floor(duration / beatInterval);
         
         for (let i = 0; i < totalBeats; i++) {
             setTimeout(() => {
-                if (this.hasStarted && this.gameState === 'playing' && !this.isPaused) {
+                // Remove the hasStarted check - if this function is called, we're ready to play
+                if (this.gameState === 'playing' && !this.isPaused) {
                     try {
                         const oscillator = audioCtx.createOscillator();
                         const gainNode = audioCtx.createGain();
