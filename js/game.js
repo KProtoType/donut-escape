@@ -440,83 +440,56 @@ class MagicTilesGame {
     
     // Royalty-Free Song Patterns
     getSummerVibesNotes() {
-        // Easy pop song with realistic verse-chorus structure
+        // Easy pop song with random lane distribution
         const beat = 500; // 120 BPM
         const notes = [];
         
-        // Intro (sparse, building)
-        for (let i = 0; i < 8; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-            if (i === 6) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-        }
-        
-        // Verse 1 (steady rhythm)
-        for (let i = 8; i < 24; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            if (i % 8 === 5) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-        }
-        
-        // Pre-chorus (building energy)
-        for (let i = 24; i < 32; i++) {
-            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-            if (i >= 28 && i % 2 === 1) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-        }
-        
-        // Chorus (energetic)
-        for (let i = 32; i < 48; i++) {
-            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-            if (i % 4 === 1) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 3 });
-        }
-        
-        // Verse 2 (similar but with variations)
-        for (let i = 48; i < 64; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            if (i % 6 === 3) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-            if (i >= 60) notes.push({ time: i * beat + beat/2, lane: 1, type: 'normal', duration: 0 });
+        // Create a basic rhythm pattern but randomize lanes
+        for (let i = 0; i < 72; i++) {
+            // Main beats (every beat)
+            if (i % 4 === 0) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Off-beats (every other beat)
+            if (i % 4 === 2) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Additional notes for complexity
+            if (i % 8 === 5 && Math.random() > 0.3) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Random hold notes
+            if (i % 12 === 7 && Math.random() > 0.6) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'hold', duration: beat * 3 });
+            }
         }
         
         return notes.sort((a, b) => a.time - b.time);
     }
     
     getElectricDreamsNotes() {
-        // Medium synthwave-inspired track
+        // Medium synthwave with random lanes
         const beat = 468; // 128 BPM
         const notes = [];
         
-        // Synth intro with arpeggios
-        const arpPattern = [0, 1, 3, 2, 0, 2, 1, 3];
-        for (let i = 0; i < 16; i++) {
-            if (i % 2 === 0) notes.push({ time: i * beat, lane: arpPattern[i % 8], type: 'normal', duration: 0 });
-        }
-        
-        // Verse with steady beat and melody
-        for (let i = 16; i < 32; i++) {
-            // Four-on-the-floor kick
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            // Snare backbeat
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            // Synth melody line
-            if (i % 6 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-            if (i % 8 === 7) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-        }
-        
-        // Build-up section
-        for (let i = 32; i < 48; i++) {
-            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-            if (i >= 40 && i % 2 === 1) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-            if (i >= 44) notes.push({ time: i * beat + beat/2, lane: (i + 1) % 4, type: 'normal', duration: 0 });
-        }
-        
-        // Drop/Chorus (intense)
-        for (let i = 48; i < 80; i++) {
-            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-            if (i % 4 === 1) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            if (i % 8 === 6) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
-            // Rapid synth patterns
-            if (i >= 64 && i % 3 === 0) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+        // Create rhythm pattern with random lane distribution
+        for (let i = 0; i < 85; i++) {
+            // Main beats
+            if (i % 4 === 0) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Backbeats
+            if (i % 4 === 2) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Sixteenth notes (more complex)
+            if (i % 2 === 1 && Math.random() > 0.4) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Random holds
+            if (i % 16 === 11 && Math.random() > 0.5) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'hold', duration: beat * 2 });
+            }
         }
         
         return notes.sort((a, b) => a.time - b.time);
@@ -548,46 +521,32 @@ class MagicTilesGame {
     }
     
     getStreetRhythmNotes() {
-        // Hip-hop with classic boom-bap and rap flow
+        // Hip-hop with random lane distribution
         const beat = 666; // 90 BPM
         const notes = [];
         
-        // Intro with minimalistic pattern
-        for (let i = 0; i < 8; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-        }
-        
-        // Verse 1 - classic boom-bap
-        for (let i = 8; i < 24; i++) {
-            // Kick on 1 and 3
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            // Snare on 2 and 4
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            // Hi-hats
-            if (i % 2 === 1) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
-            // Rap flow simulation
-            if (i % 8 === 5) notes.push({ time: i * beat + beat/2, lane: 1, type: 'normal', duration: 0 });
-        }
-        
-        // Hook/Chorus with more complexity
-        for (let i = 24; i < 40; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            // Double-time hi-hats
-            if (i % 2 === 0) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
-            // Melodic elements
-            if (i % 6 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
-        }
-        
-        // Verse 2 with variations
-        for (let i = 40; i < 56; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            // Syncopated patterns
-            if (i % 6 === 3) notes.push({ time: i * beat + beat/4, lane: 1, type: 'normal', duration: 0 });
-            if (i % 8 === 6) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+        // Create hip-hop rhythm with random lanes
+        for (let i = 0; i < 60; i++) {
+            // Strong beats
+            if (i % 4 === 0) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Backbeats
+            if (i % 4 === 2) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Syncopated hits
+            if (i % 8 === 5 && Math.random() > 0.3) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Hi-hat patterns
+            if (i % 2 === 1 && Math.random() > 0.5) {
+                notes.push({ time: i * beat + beat/3, lane: Math.floor(Math.random() * 4), type: 'normal', duration: 0 });
+            }
+            // Random holds
+            if (i % 16 === 13 && Math.random() > 0.7) {
+                notes.push({ time: i * beat, lane: Math.floor(Math.random() * 4), type: 'hold', duration: beat * 2 });
+            }
         }
         
         return notes.sort((a, b) => a.time - b.time);
