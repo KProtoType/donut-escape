@@ -41,6 +41,9 @@ class MagicTilesGame {
         // Load songs database
         this.songs = this.initializeSongs();
         
+        // Set default song so PLAY GAME works immediately
+        this.selectedSong = this.songs[0]; // Default to first song
+        
         // Initialize everything
         this.initializeEventListeners();
         this.populateSongList();
