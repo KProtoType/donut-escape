@@ -1480,61 +1480,37 @@ class MagicTilesGame {
         this.hasStarted = true;
         this.startTime = performance.now(); // Reset timing when actual game starts
         
-        // Test immediate audio on user click
-        this.testAudio();
-        
-        // NOW start the audio after game begins
-        this.generateBackgroundMusic(this.currentSong);
+        // Simple audio start
+        this.startSimpleAudio();
     }
     
-    testAudio() {
-        console.log('=== AUDIO TEST STARTING ===');
+    startSimpleAudio() {
+        console.log('🎵 Starting simple audio...');
         
-        // Test if audio works immediately on user interaction
         try {
-            console.log('Creating AudioContext...');
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            console.log('AudioContext created. State:', audioCtx.state);
-            console.log('AudioContext sample rate:', audioCtx.sampleRate);
+            // Get the audio element
+            const audio = document.getElementById('gameAudio');
             
-            // Force resume if needed
-            if (audioCtx.state === 'suspended') {
-                console.log('AudioContext suspended, attempting resume...');
-                audioCtx.resume().then(() => {
-                    console.log('AudioContext resumed. New state:', audioCtx.state);
-                    this.playTestBeep(audioCtx);
-                });
+            if (audio) {
+                console.log('Audio element found, attempting to play...');
+                audio.volume = 0.5;
+                
+                // Try to play
+                const playPromise = audio.play();
+                
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        console.log('✅ Audio playing successfully!');
+                    }).catch(e => {
+                        console.error('❌ Audio play failed:', e);
+                        console.log('This usually means browser autoplay policy blocked it');
+                    });
+                }
             } else {
-                console.log('AudioContext already running, playing test beep...');
-                this.playTestBeep(audioCtx);
+                console.error('Audio element not found!');
             }
         } catch (e) {
-            console.error('AUDIO TEST FAILED:', e);
-        }
-    }
-    
-    playTestBeep(audioCtx) {
-        try {
-            console.log('Creating test beep...');
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            oscillator.frequency.value = 440; // A note
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-            
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 1);
-            
-            console.log('🔊 TEST BEEP SHOULD BE PLAYING NOW! (440Hz for 1 second)');
-            console.log('If you cannot hear this, your browser is blocking audio');
-        } catch (e) {
-            console.error('Test beep creation failed:', e);
+            console.error('Audio start failed:', e);
         }
     }
     
@@ -1573,99 +1549,18 @@ class MagicTilesGame {
         // DON'T generate background music yet - wait for START
     }
     
-    generateBackgroundMusic(song) {
-        // Create a simple audio context for background beats
-        try {
-            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            console.log('Initial AudioContext state:', audioCtx.state);
-            
-            // FORCE resume if suspended
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume().then(() => {
-                    console.log('AudioContext resumed, state:', audioCtx.state);
-                    this.startBackgroundBeats(audioCtx, song);
-                });
-            } else {
-                this.startBackgroundBeats(audioCtx, song);
-            }
-        } catch (e) {
-            console.error('Audio context failed:', e);
-        }
-    }
-    
-    startBackgroundBeats(audioCtx, song) {
-        const duration = song.duration;
-        const bpm = song.bpm;
-        const beatInterval = 60 / bpm;
-        
-        console.log(`Starting beats: ${song.title}, BPM: ${bpm}, Interval: ${beatInterval}s`);
-        
-        // Play first beat immediately to test
-        this.playBeat(audioCtx, 440);
-        
-        // Then start the metronome
-        this.playMetronome(audioCtx, beatInterval, duration);
-    }
-    
-    playBeat(audioCtx, frequency) {
-        try {
-            const oscillator = audioCtx.createOscillator();
-            const gainNode = audioCtx.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            oscillator.frequency.value = frequency;
-            oscillator.type = 'square';
-            
-            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-            
-            oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.1);
-            
-            console.log('Beat played at', frequency, 'Hz');
-        } catch (e) {
-            console.error('Beat failed:', e);
-        }
-    }
-    
-    playMetronome(audioCtx, beatInterval, duration) {
-        const totalBeats = Math.floor(duration / beatInterval);
-        console.log(`Scheduling ${totalBeats} beats, interval: ${beatInterval}s`);
-        
-        for (let i = 0; i < totalBeats; i++) {
-            setTimeout(() => {
-                if (this.gameState === 'playing' && !this.isPaused) {
-                    const frequency = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
-                    this.playBeat(audioCtx, frequency);
-                }
-            }, i * beatInterval * 1000);
-        }
-    }
     
     startAudio() {
-        // In a real implementation, you would load and play the actual audio file here
+        // Simple timing setup
         this.startTime = performance.now();
-        
-        // Try to resume audio context if suspended
-        if (window.AudioContext || window.webkitAudioContext) {
-            try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
-                }
-            } catch (e) {
-                console.log('Could not resume audio context');
-            }
-        }
     }
     
     stopAudio() {
-        if (this.audio && !this.audio.paused) {
-            this.audio.pause();
-            this.audio.currentTime = 0;
+        const audio = document.getElementById('gameAudio');
+        if (audio && !audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+            console.log('Audio stopped');
         }
     }
     
@@ -1808,19 +1703,21 @@ class MagicTilesGame {
         
         this.gameTime = performance.now() - this.startTime;
         
-        // Update tiles with speed multiplier
+        // Update tiles with speed multiplier (ONLY if game has started)
         for (const tile of this.tiles) {
-            // Don't update stationary tiles
-            if (!tile.isStationary) {
-                const speedMult = this.hasStarted ? this.speedMultiplier : 1.0;
-                tile.update(this.gameTime * speedMult, this.fallSpeed);
-                
-                // Check for missed tiles (only after game has started)
-                if (this.hasStarted && !tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance && tile.type !== 'start') {
-                    tile.missed = true;
-                    this.combo = 0; // Reset combo on miss
-                    this.gameOver('Missed a tile!');
-                    return;
+            // Don't update any tiles until game has started, except stationary START tile
+            if (tile.isStationary || this.hasStarted) {
+                if (!tile.isStationary) {
+                    const speedMult = this.hasStarted ? this.speedMultiplier : 1.0;
+                    tile.update(this.gameTime * speedMult, this.fallSpeed);
+                    
+                    // Check for missed tiles (only after game has started)
+                    if (this.hasStarted && !tile.hit && !tile.missed && tile.y > this.hitZone + this.hitTolerance && tile.type !== 'start') {
+                        tile.missed = true;
+                        this.combo = 0; // Reset combo on miss
+                        this.gameOver('Missed a tile!');
+                        return;
+                    }
                 }
             }
         }
