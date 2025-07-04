@@ -16,9 +16,9 @@ class MagicTilesGame {
         this.canvas.height = 600;
         this.lanes = 4;
         this.laneWidth = this.canvas.width / this.lanes;
-        this.fallSpeed = 0.3; // Very slow fall speed for easier gameplay
+        this.fallSpeed = 0.15; // Even slower fall speed for better timing
         this.hitZone = this.canvas.height - 100;
-        this.hitTolerance = 40;
+        this.hitTolerance = 80; // Larger hit window for easier gameplay
         
         // Game data
         this.tiles = [];
@@ -1571,7 +1571,7 @@ class MagicTilesGame {
         
         // Create tiles from song notes (they won't appear until START is pressed)
         song.notes.forEach(note => {
-            this.tiles.push(new Tile(note.lane, note.time + 2000, note.type, note.duration)); // Start tiles after 2 seconds
+            this.tiles.push(new Tile(note.lane, note.time + 1000, note.type, note.duration)); // Start tiles after 1 second
         });
         
         // DON'T generate background music yet - wait for START
@@ -1584,11 +1584,12 @@ class MagicTilesGame {
     }
     
     stopAudio() {
-        const audio = document.getElementById('gameAudio');
-        if (audio && !audio.paused) {
-            audio.pause();
-            audio.currentTime = 0;
-        }
+        // Don't stop audio on game over - let it keep playing
+        // const audio = document.getElementById('gameAudio');
+        // if (audio && !audio.paused) {
+        //     audio.pause();
+        //     audio.currentTime = 0;
+        // }
     }
     
     pauseGame() {
@@ -1611,6 +1612,8 @@ class MagicTilesGame {
     }
     
     checkTileHit(lane) {
+        console.log(`🎯 Checking lane ${lane}, hitZone: ${this.hitZone}, tolerance: ${this.hitTolerance}`);
+        
         const hitWindow = this.hitTolerance;
         let bestTile = null;
         let bestDistance = Infinity;
@@ -1619,9 +1622,11 @@ class MagicTilesGame {
         for (const tile of this.tiles) {
             if (tile.lane === lane && !tile.hit && !tile.missed) {
                 const distance = Math.abs(tile.y - this.hitZone);
+                console.log(`Tile in lane ${lane}: y=${tile.y}, distance=${distance}, type=${tile.type}`);
                 if (distance <= hitWindow && distance < bestDistance) {
                     bestTile = tile;
                     bestDistance = distance;
+                    console.log(`✅ Found hittable tile! Distance: ${distance}`);
                 }
             }
         }
@@ -1962,10 +1967,10 @@ class Tile {
     }
     
     update(gameTime, fallSpeed) {
-        // Calculate position based on timing
+        // Calculate position based on timing for better sync
         const timeUntilHit = this.time - gameTime;
         const fallDistance = 600; // Distance from spawn to hit zone
-        const fallTime = fallDistance / fallSpeed; // Time to fall (roughly)
+        const fallTime = 4000; // Fixed 4 second fall time for consistent timing
         
         this.y = 500 - (timeUntilHit / fallTime) * fallDistance;
         
@@ -1987,9 +1992,14 @@ class Tile {
         ctx.globalAlpha = this.alpha;
         
         // Make tiles vertical (taller than wide)
-        const x = this.lane * laneWidth + 30; // More padding for vertical tiles
-        const width = laneWidth - 60; // Narrower for vertical appearance
-        const height = this.type === 'hold' ? Math.max(80, (this.duration / 5) * 2.5) : 80; // Hold tiles 2.5x longer
+        const x = this.lane * laneWidth + 20; // Padding for vertical tiles
+        const width = laneWidth - 40; // Narrower for vertical appearance
+        let height = 60; // Default height
+        
+        if (this.type === 'hold') {
+            // Hold tiles extend upward from hit position
+            height = Math.max(60, (this.duration / 10) * 1.5); // Reasonable length for holds
+        }
         
         // Draw tile based on type
         if (this.type === 'start') {
