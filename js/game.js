@@ -1477,8 +1477,39 @@ class MagicTilesGame {
         this.hasStarted = true;
         this.startTime = performance.now(); // Reset timing when actual game starts
         
+        // Test immediate audio on user click
+        this.testAudio();
+        
         // NOW start the audio after game begins
         this.generateBackgroundMusic(this.currentSong);
+    }
+    
+    testAudio() {
+        // Test if audio works immediately on user interaction
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('AudioContext state:', audioCtx.state);
+            
+            // Play a test beep immediately
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.frequency.value = 440; // A note
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.5);
+            
+            console.log('Test beep should play now');
+        } catch (e) {
+            console.error('Test audio failed:', e);
+        }
     }
     
     resetGame() {
@@ -1521,47 +1552,68 @@ class MagicTilesGame {
         try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
-            // Try to resume audio context if it's suspended (browser requirement)
+            console.log('Initial AudioContext state:', audioCtx.state);
+            
+            // FORCE resume if suspended
             if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
+                audioCtx.resume().then(() => {
+                    console.log('AudioContext resumed, state:', audioCtx.state);
+                    this.startBackgroundBeats(audioCtx, song);
+                });
+            } else {
+                this.startBackgroundBeats(audioCtx, song);
             }
-            
-            const duration = song.duration;
-            const bpm = song.bpm;
-            const beatInterval = 60 / bpm;
-            
-            console.log(`Starting audio: ${song.title}, BPM: ${bpm}, Duration: ${duration}s`);
-            this.playMetronome(audioCtx, beatInterval, duration);
         } catch (e) {
-            console.log('Audio context not supported, playing without background music:', e);
+            console.error('Audio context failed:', e);
+        }
+    }
+    
+    startBackgroundBeats(audioCtx, song) {
+        const duration = song.duration;
+        const bpm = song.bpm;
+        const beatInterval = 60 / bpm;
+        
+        console.log(`Starting beats: ${song.title}, BPM: ${bpm}, Interval: ${beatInterval}s`);
+        
+        // Play first beat immediately to test
+        this.playBeat(audioCtx, 440);
+        
+        // Then start the metronome
+        this.playMetronome(audioCtx, beatInterval, duration);
+    }
+    
+    playBeat(audioCtx, frequency) {
+        try {
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.frequency.value = frequency;
+            oscillator.type = 'square';
+            
+            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            
+            oscillator.start();
+            oscillator.stop(audioCtx.currentTime + 0.1);
+            
+            console.log('Beat played at', frequency, 'Hz');
+        } catch (e) {
+            console.error('Beat failed:', e);
         }
     }
     
     playMetronome(audioCtx, beatInterval, duration) {
         const totalBeats = Math.floor(duration / beatInterval);
+        console.log(`Scheduling ${totalBeats} beats, interval: ${beatInterval}s`);
         
         for (let i = 0; i < totalBeats; i++) {
             setTimeout(() => {
-                // Remove the hasStarted check - if this function is called, we're ready to play
                 if (this.gameState === 'playing' && !this.isPaused) {
-                    try {
-                        const oscillator = audioCtx.createOscillator();
-                        const gainNode = audioCtx.createGain();
-                        
-                        oscillator.connect(gainNode);
-                        gainNode.connect(audioCtx.destination);
-                        
-                        oscillator.frequency.value = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
-                        oscillator.type = 'square';
-                        
-                        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                        
-                        oscillator.start();
-                        oscillator.stop(audioCtx.currentTime + 0.1);
-                    } catch (e) {
-                        console.log('Error playing beat:', e);
-                    }
+                    const frequency = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
+                    this.playBeat(audioCtx, frequency);
                 }
             }, i * beatInterval * 1000);
         }
