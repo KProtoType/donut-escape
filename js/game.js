@@ -2006,8 +2006,10 @@ class Tile {
     }
     
     shouldRender(gameTime) {
+        // Don't render if tile is hit
+        if (this.hit) return false;
         // Always render stationary tiles, otherwise use normal timing
-        return this.isStationary || (gameTime >= this.time - 3000 && !this.hit); // Show 3 seconds before hit time
+        return this.isStationary || (gameTime >= this.time - 3000); // Show 3 seconds before hit time
     }
     
     draw(ctx, laneWidth) {
