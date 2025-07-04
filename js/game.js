@@ -1518,27 +1518,37 @@ class MagicTilesGame {
         // Simple backup metronome using Web Audio API
         try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            console.log('🥁 Starting metronome fallback');
             
-            setInterval(() => {
+            // Resume audio context if needed
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            this.metronomeInterval = setInterval(() => {
                 if (this.gameState === 'playing' && !this.isPaused) {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    
-                    oscillator.frequency.value = 440;
-                    oscillator.type = 'square';
-                    
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                    
-                    oscillator.start();
-                    oscillator.stop(audioCtx.currentTime + 0.1);
+                    try {
+                        const oscillator = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        
+                        oscillator.frequency.value = 880; // Higher pitch
+                        oscillator.type = 'sine';
+                        
+                        gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioCtx.currentTime + 0.1);
+                    } catch (e) {
+                        console.log('Metronome beat failed');
+                    }
                 }
-            }, 500); // Every 500ms
+            }, 600); // Every 600ms for steady beat
         } catch (e) {
-            console.log('No audio available');
+            console.log('Metronome failed to start');
         }
     }
     
@@ -1645,11 +1655,12 @@ class MagicTilesGame {
                 return true;
             }
         } else {
-            // Wrong tap - only trigger game over if game has started
-            if (this.hasStarted) {
-                this.combo = 0; // Reset combo on wrong tap
-                this.gameOver('Wrong tap!');
-            }
+            console.log('❌ No tile found in hit zone');
+            // Don't trigger game over for wrong taps - too punishing
+            // if (this.hasStarted) {
+            //     this.combo = 0; // Reset combo on wrong tap
+            //     this.gameOver('Wrong tap!');
+            // }
         }
         
         return false; // No tile to hit
