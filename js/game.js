@@ -1485,12 +1485,34 @@ class MagicTilesGame {
     }
     
     testAudio() {
+        console.log('=== AUDIO TEST STARTING ===');
+        
         // Test if audio works immediately on user interaction
         try {
+            console.log('Creating AudioContext...');
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            console.log('AudioContext state:', audioCtx.state);
+            console.log('AudioContext created. State:', audioCtx.state);
+            console.log('AudioContext sample rate:', audioCtx.sampleRate);
             
-            // Play a test beep immediately
+            // Force resume if needed
+            if (audioCtx.state === 'suspended') {
+                console.log('AudioContext suspended, attempting resume...');
+                audioCtx.resume().then(() => {
+                    console.log('AudioContext resumed. New state:', audioCtx.state);
+                    this.playTestBeep(audioCtx);
+                });
+            } else {
+                console.log('AudioContext already running, playing test beep...');
+                this.playTestBeep(audioCtx);
+            }
+        } catch (e) {
+            console.error('AUDIO TEST FAILED:', e);
+        }
+    }
+    
+    playTestBeep(audioCtx) {
+        try {
+            console.log('Creating test beep...');
             const oscillator = audioCtx.createOscillator();
             const gainNode = audioCtx.createGain();
             
@@ -1500,15 +1522,16 @@ class MagicTilesGame {
             oscillator.frequency.value = 440; // A note
             oscillator.type = 'sine';
             
-            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
             
             oscillator.start();
-            oscillator.stop(audioCtx.currentTime + 0.5);
+            oscillator.stop(audioCtx.currentTime + 1);
             
-            console.log('Test beep should play now');
+            console.log('🔊 TEST BEEP SHOULD BE PLAYING NOW! (440Hz for 1 second)');
+            console.log('If you cannot hear this, your browser is blocking audio');
         } catch (e) {
-            console.error('Test audio failed:', e);
+            console.error('Test beep creation failed:', e);
         }
     }
     
