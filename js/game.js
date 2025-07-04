@@ -1584,23 +1584,33 @@ class MagicTilesGame {
     }
     
     checkTileHit(lane) {
+        console.log(`🖱️ CLICK DETECTED on lane ${lane}`);
+        console.log(`Total tiles: ${this.tiles.length}`);
+        console.log(`Hit tolerance: ${this.hitTolerance}`);
+        console.log(`Hit zone: ${this.hitZone}`);
+        
         const hitWindow = this.hitTolerance;
         let bestTile = null;
         let bestDistance = Infinity;
         
         // Find the closest tile in the hit zone for this lane
         for (const tile of this.tiles) {
+            console.log(`Checking tile: lane=${tile.lane}, y=${tile.y}, type=${tile.type}, hit=${tile.hit}`);
             if (tile.lane === lane && !tile.hit && !tile.missed) {
                 const distance = Math.abs(tile.y - this.hitZone);
+                console.log(`Tile distance from hit zone: ${distance}`);
                 if (distance <= hitWindow && distance < bestDistance) {
                     bestTile = tile;
                     bestDistance = distance;
+                    console.log(`✅ Found better tile! Distance: ${distance}`);
                 }
             }
         }
         
         if (bestTile) {
+            console.log(`🎯 HIT TILE: ${bestTile.type} at distance ${bestDistance}`);
             if (bestTile.type === 'start') {
+                console.log('🚀 STARTING GAME!');
                 // Start the game when START tile is hit
                 this.startActualGame();
                 bestTile.hit = true;
@@ -1612,6 +1622,7 @@ class MagicTilesGame {
                 return true;
             }
         } else {
+            console.log('❌ NO TILE HIT');
             // Wrong tap - only trigger game over if game has started
             if (this.hasStarted) {
                 this.combo = 0; // Reset combo on wrong tap
