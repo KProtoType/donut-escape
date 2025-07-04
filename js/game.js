@@ -1520,14 +1520,20 @@ class MagicTilesGame {
         // Create a simple audio context for background beats
         try {
             const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Try to resume audio context if it's suspended (browser requirement)
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
             const duration = song.duration;
             const bpm = song.bpm;
             const beatInterval = 60 / bpm;
             
-            // This is a simplified version - in a real game you'd load actual audio files
+            console.log(`Starting audio: ${song.title}, BPM: ${bpm}, Duration: ${duration}s`);
             this.playMetronome(audioCtx, beatInterval, duration);
         } catch (e) {
-            console.log('Audio context not supported, playing without background music');
+            console.log('Audio context not supported, playing without background music:', e);
         }
     }
     
