@@ -1399,7 +1399,10 @@ class MagicTilesGame {
     }
     
     handleTap(lane, isPressed) {
-        if (this.gameState !== 'playing' || this.isPaused) return;
+        // Allow taps in waitingToStart state (for START tile) or playing state
+        if ((this.gameState !== 'playing' && this.gameState !== 'waitingToStart') || this.isPaused) return;
+        
+        console.log(`🎮 handleTap called: lane=${lane}, pressed=${isPressed}, gameState=${this.gameState}`);
         
         const tapZone = document.querySelectorAll('.tap-zone')[lane];
         
