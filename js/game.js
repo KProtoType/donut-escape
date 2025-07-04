@@ -440,47 +440,83 @@ class MagicTilesGame {
     
     // Royalty-Free Song Patterns
     getSummerVibesNotes() {
-        // Easy pop song with typical verse-chorus structure
+        // Easy pop song with realistic verse-chorus structure
         const beat = 500; // 120 BPM
         const notes = [];
         
-        // Verse pattern (simple)
-        for (let i = 0; i < 16; i++) {
-            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+        // Intro (sparse, building)
+        for (let i = 0; i < 8; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i === 6) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
         }
         
-        // Chorus pattern (more active)
-        for (let i = 16; i < 32; i++) {
+        // Verse 1 (steady rhythm)
+        for (let i = 8; i < 24; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i % 8 === 5) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+        }
+        
+        // Pre-chorus (building energy)
+        for (let i = 24; i < 32; i++) {
             if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
+            if (i >= 28 && i % 2 === 1) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        // Chorus (energetic)
+        for (let i = 32; i < 48; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+            if (i % 4 === 1) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 3 });
+        }
+        
+        // Verse 2 (similar but with variations)
+        for (let i = 48; i < 64; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i % 6 === 3) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+            if (i >= 60) notes.push({ time: i * beat + beat/2, lane: 1, type: 'normal', duration: 0 });
         }
         
         return notes.sort((a, b) => a.time - b.time);
     }
     
     getElectricDreamsNotes() {
-        // Medium pop with synth elements
+        // Medium synthwave-inspired track
         const beat = 468; // 128 BPM
         const notes = [];
         
-        for (let i = 0; i < 64; i++) {
-            // Kick on 1 and 3
-            if (i % 4 === 0 || i % 4 === 2) {
-                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            }
-            // Snare on 2 and 4
-            if (i % 4 === 1 || i % 4 === 3) {
-                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            }
-            // Synth melody
-            if (i % 8 === 4 || i % 8 === 6) {
-                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-            }
-            // Build ups
-            if (i >= 48 && i % 2 === 0) {
-                notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
-            }
+        // Synth intro with arpeggios
+        const arpPattern = [0, 1, 3, 2, 0, 2, 1, 3];
+        for (let i = 0; i < 16; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: arpPattern[i % 8], type: 'normal', duration: 0 });
+        }
+        
+        // Verse with steady beat and melody
+        for (let i = 16; i < 32; i++) {
+            // Four-on-the-floor kick
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            // Snare backbeat
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            // Synth melody line
+            if (i % 6 === 3) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 7) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        // Build-up section
+        for (let i = 32; i < 48; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+            if (i >= 40 && i % 2 === 1) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+            if (i >= 44) notes.push({ time: i * beat + beat/2, lane: (i + 1) % 4, type: 'normal', duration: 0 });
+        }
+        
+        // Drop/Chorus (intense)
+        for (let i = 48; i < 80; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+            if (i % 4 === 1) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i % 8 === 6) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
+            // Rapid synth patterns
+            if (i >= 64 && i % 3 === 0) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
         }
         
         return notes.sort((a, b) => a.time - b.time);
@@ -512,24 +548,46 @@ class MagicTilesGame {
     }
     
     getStreetRhythmNotes() {
-        // Hip-hop with classic boom-bap
+        // Hip-hop with classic boom-bap and rap flow
         const beat = 666; // 90 BPM
         const notes = [];
         
-        for (let i = 0; i < 48; i++) {
+        // Intro with minimalistic pattern
+        for (let i = 0; i < 8; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+        }
+        
+        // Verse 1 - classic boom-bap
+        for (let i = 8; i < 24; i++) {
             // Kick on 1 and 3
-            if (i % 4 === 0 || i % 4 === 2) {
-                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            }
-            // Snare on 2 and 4 (classic hip-hop)
-            if (i % 4 === 1 || i % 4 === 3) {
-                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-                notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            }
-            // Hi-hat patterns
-            if (i % 2 === 1) {
-                notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
-            }
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            // Snare on 2 and 4
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            // Hi-hats
+            if (i % 2 === 1) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
+            // Rap flow simulation
+            if (i % 8 === 5) notes.push({ time: i * beat + beat/2, lane: 1, type: 'normal', duration: 0 });
+        }
+        
+        // Hook/Chorus with more complexity
+        for (let i = 24; i < 40; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            // Double-time hi-hats
+            if (i % 2 === 0) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+            // Melodic elements
+            if (i % 6 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 7) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 2 });
+        }
+        
+        // Verse 2 with variations
+        for (let i = 40; i < 56; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            // Syncopated patterns
+            if (i % 6 === 3) notes.push({ time: i * beat + beat/4, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 6) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
         }
         
         return notes.sort((a, b) => a.time - b.time);
@@ -566,20 +624,43 @@ class MagicTilesGame {
         const beat = 461; // 130 BPM
         const notes = [];
         
-        for (let i = 0; i < 96; i++) {
-            // Four on the floor
+        // Ambient intro
+        for (let i = 0; i < 16; i++) {
+            if (i % 8 === 0) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 4 });
+            if (i % 6 === 3) notes.push({ time: i * beat, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        // Build-up with increasing intensity
+        for (let i = 16; i < 48; i++) {
+            // Four on the floor kick
             if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            
-            // Build-up sections
-            if (i >= 32 && i < 64) {
-                if (i % 2 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-                if (i % 8 === 6) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
-            }
-            
-            // Drop section
-            if (i >= 64) {
+            // Gradual addition of elements
+            if (i >= 24 && i % 4 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i >= 32 && i % 2 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i >= 40 && i % 2 === 0) notes.push({ time: i * beat + beat/2, lane: 3, type: 'normal', duration: 0 });
+        }
+        
+        // Main drop - complex patterns
+        for (let i = 48; i < 80; i++) {
+            // Pumping bass
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            // Synth stabs
+            if (i % 4 === 1) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            // Melodic line
+            const melodyPattern = [1, 3, 2, 1, 3, 1, 2, 3];
+            if (i % 2 === 1) notes.push({ time: i * beat + beat/2, lane: melodyPattern[i % 8], type: 'normal', duration: 0 });
+        }
+        
+        // Breakdown and rebuild
+        for (let i = 80; i < 112; i++) {
+            if (i < 88) {
+                // Sparse breakdown
+                if (i % 8 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+                if (i % 8 === 4) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            } else {
+                // Final buildup
                 if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
-                if (i % 16 === 15) notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 2 });
+                if (i % 4 === 3) notes.push({ time: i * beat + beat/3, lane: 3, type: 'normal', duration: 0 });
             }
         }
         
@@ -618,18 +699,35 @@ class MagicTilesGame {
         const beat = 545; // 110 BPM
         const notes = [];
         
-        for (let i = 0; i < 44; i++) {
-            // Gentle acoustic pattern
-            if (i % 8 === 0 || i % 8 === 3 || i % 8 === 5) {
-                notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
-            }
-            if (i % 8 === 2 || i % 8 === 6) {
-                notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
-            }
+        // Gentle acoustic fingerpicking intro
+        const fingerpickPattern = [0, 2, 1, 2, 0, 1, 2, 1];
+        for (let i = 0; i < 16; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: fingerpickPattern[i % 8], type: 'normal', duration: 0 });
+        }
+        
+        // Verse with soft rhythm
+        for (let i = 16; i < 32; i++) {
+            // Bass notes
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            // Melody
+            if (i % 6 === 2) notes.push({ time: i * beat, lane: 2, type: 'normal', duration: 0 });
+            if (i % 8 === 5) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
             // Sustained chords
-            if (i % 16 === 7 || i % 16 === 15) {
-                notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 3 });
-            }
+            if (i % 8 === 7) notes.push({ time: i * beat, lane: 3, type: 'hold', duration: beat * 3 });
+        }
+        
+        // Chorus with more energy
+        for (let i = 32; i < 48; i++) {
+            if (i % 2 === 0) notes.push({ time: i * beat, lane: (i % 4), type: 'normal', duration: 0 });
+            if (i % 4 === 1) notes.push({ time: i * beat, lane: 1, type: 'normal', duration: 0 });
+            if (i % 8 === 6) notes.push({ time: i * beat, lane: 2, type: 'hold', duration: beat * 2 });
+        }
+        
+        // Bridge - sparse and emotional
+        for (let i = 48; i < 56; i++) {
+            if (i % 4 === 0) notes.push({ time: i * beat, lane: 0, type: 'normal', duration: 0 });
+            if (i % 6 === 3) notes.push({ time: i * beat + beat/2, lane: 2, type: 'normal', duration: 0 });
+            if (i === 54) notes.push({ time: i * beat, lane: 1, type: 'hold', duration: beat * 4 });
         }
         
         return notes.sort((a, b) => a.time - b.time);
@@ -1465,7 +1563,8 @@ class MagicTilesGame {
             const bpm = song.bpm;
             const beatInterval = 60 / bpm;
             
-            // This is a simplified version - in a real game you'd load actual audio files\n            this.playMetronome(audioCtx, beatInterval, duration);
+            // This is a simplified version - in a real game you'd load actual audio files
+            this.playMetronome(audioCtx, beatInterval, duration);
         } catch (e) {
             console.log('Audio context not supported, playing without background music');
         }
@@ -1477,21 +1576,25 @@ class MagicTilesGame {
         
         for (let i = 0; i < totalBeats; i++) {
             setTimeout(() => {
-                if (this.gameState === 'playing' && !this.isPaused) {
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    
-                    oscillator.frequency.value = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
-                    oscillator.type = 'square';
-                    
-                    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-                    
-                    oscillator.start();
-                    oscillator.stop(audioCtx.currentTime + 0.1);
+                if (this.hasStarted && this.gameState === 'playing' && !this.isPaused) {
+                    try {
+                        const oscillator = audioCtx.createOscillator();
+                        const gainNode = audioCtx.createGain();
+                        
+                        oscillator.connect(gainNode);
+                        gainNode.connect(audioCtx.destination);
+                        
+                        oscillator.frequency.value = i % 4 === 0 ? 800 : 400; // Accent every 4th beat
+                        oscillator.type = 'square';
+                        
+                        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                        
+                        oscillator.start();
+                        oscillator.stop(audioCtx.currentTime + 0.1);
+                    } catch (e) {
+                        console.log('Error playing beat:', e);
+                    }
                 }
             }, i * beatInterval * 1000);
         }
@@ -1500,6 +1603,18 @@ class MagicTilesGame {
     startAudio() {
         // In a real implementation, you would load and play the actual audio file here
         this.startTime = performance.now();
+        
+        // Try to resume audio context if suspended
+        if (window.AudioContext || window.webkitAudioContext) {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {
+                console.log('Could not resume audio context');
+            }
+        }
     }
     
     stopAudio() {
@@ -1549,6 +1664,8 @@ class MagicTilesGame {
                 // Start the game when START tile is hit
                 this.startActualGame();
                 bestTile.hit = true;
+                // Remove START tile from tiles array
+                this.tiles = this.tiles.filter(t => t !== bestTile);
                 return true;
             } else {
                 this.hitTile(bestTile, bestDistance);
@@ -1634,9 +1751,10 @@ class MagicTilesGame {
         document.getElementById('score').textContent = this.score;
         document.getElementById('combo').textContent = this.combo;
         
-        // Calculate accuracy based on notes processed so far
-        const notesProcessed = this.hitNotes + this.tiles.filter(t => t.missed && t.type !== 'start').length;
-        const accuracy = notesProcessed > 0 ? Math.round((this.hitNotes / notesProcessed) * 100) : 100;
+        // Calculate accuracy: only count actual game tiles (not START tile)
+        const missedTiles = this.tiles.filter(t => t.missed && t.type !== 'start').length;
+        const totalProcessed = this.hitNotes + missedTiles;
+        const accuracy = totalProcessed > 0 ? Math.round((this.hitNotes / totalProcessed) * 100) : 100;
         document.getElementById('accuracy').textContent = accuracy + '%';
     }
     
