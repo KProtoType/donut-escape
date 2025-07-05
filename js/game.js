@@ -61,7 +61,7 @@ class MagicTilesGame {
                 difficulty: 'Easy',
                 bpm: 120,
                 duration: 180,
-                audioFile: 'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav', // placeholder
+                audioFile: 'https://www2.cs.uic.edu/~i101/SoundFiles/BabyElephantWalk60.wav',
                 notes: this.getSummerVibesNotes()
             },
             {
@@ -72,7 +72,7 @@ class MagicTilesGame {
                 difficulty: 'Medium',
                 bpm: 128,
                 duration: 200,
-                audioFile: null,
+                audioFile: 'https://www2.cs.uic.edu/~i101/SoundFiles/CantinaBand60.wav',
                 notes: this.getElectricDreamsNotes()
             },
             {
@@ -1490,23 +1490,32 @@ class MagicTilesGame {
             // Get the audio element
             const audio = document.getElementById('gameAudio');
             
-            if (audio) {
-                audio.volume = 0.3; // Lower volume
+            if (audio && this.currentSong) {
+                // Set the audio source to the current song
+                if (this.currentSong.audioFile) {
+                    audio.src = this.currentSong.audioFile;
+                    console.log(`🎵 Loading song: ${this.currentSong.title}`);
+                }
+                
+                audio.volume = 0.3;
+                audio.currentTime = 0; // Start from beginning
                 
                 // Try to play
                 const playPromise = audio.play();
                 
                 if (playPromise !== undefined) {
                     playPromise.then(() => {
-                        console.log('🎵 Audio started');
+                        console.log(`✅ Playing: ${this.currentSong.title}`);
                     }).catch(e => {
-                        console.log('Audio blocked by browser - trying backup');
-                        // If audio fails, create simple metronome
+                        console.log('Audio blocked - using metronome');
                         this.startMetronome();
                     });
                 } else {
                     this.startMetronome();
                 }
+            } else {
+                console.log('No audio element or song');
+                this.startMetronome();
             }
         } catch (e) {
             console.log('Audio failed - using metronome');
@@ -1594,12 +1603,19 @@ class MagicTilesGame {
     }
     
     stopAudio() {
-        // Don't stop audio on game over - let it keep playing
-        // const audio = document.getElementById('gameAudio');
-        // if (audio && !audio.paused) {
-        //     audio.pause();
-        //     audio.currentTime = 0;
-        // }
+        const audio = document.getElementById('gameAudio');
+        if (audio && !audio.paused) {
+            audio.pause();
+            audio.currentTime = 0;
+            console.log('⏹️ Audio stopped');
+        }
+        
+        // Stop metronome if it's running
+        if (this.metronomeInterval) {
+            clearInterval(this.metronomeInterval);
+            this.metronomeInterval = null;
+            console.log('⏹️ Metronome stopped');
+        }
     }
     
     pauseGame() {
